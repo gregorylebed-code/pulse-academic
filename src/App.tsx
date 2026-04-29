@@ -45,7 +45,7 @@ const statuses: Array<{
 
 function App() {
   const classNames = useMemo(() => Object.keys(classes) as ClassName[], [])
-  const [selectedClass, setSelectedClass] = useState<ClassName>('Class 1')
+  const [selectedClass, setSelectedClass] = useState<ClassName>('AM')
   const [studentStatuses, setStudentStatuses] = useState<Record<string, Status | undefined>>({})
 
   const students = classes[selectedClass]
