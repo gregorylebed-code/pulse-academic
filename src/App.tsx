@@ -5,10 +5,22 @@ type Status = 'got-it' | 'almost' | 'needs-help'
 
 const STATUS_CYCLE: Status[] = ['got-it', 'almost', 'needs-help']
 
-const STATUS_STYLES: Record<Status, string> = {
-  'got-it':     'bg-green-500 text-white',
-  'almost':     'bg-yellow-400 text-yellow-950',
-  'needs-help': 'bg-red-500 text-white',
+const STATUS_RING: Record<Status, string> = {
+  'got-it':     'ring-4 ring-emerald-400',
+  'almost':     'ring-4 ring-yellow-400',
+  'needs-help': 'ring-4 ring-red-400',
+}
+
+const STATUS_INITIAL_BG: Record<Status, string> = {
+  'got-it':     'bg-emerald-100 text-emerald-700',
+  'almost':     'bg-yellow-100 text-yellow-700',
+  'needs-help': 'bg-red-100 text-red-600',
+}
+
+const STATUS_DOT: Record<Status, string> = {
+  'got-it':     'bg-emerald-400',
+  'almost':     'bg-yellow-400',
+  'needs-help': 'bg-red-400',
 }
 
 const classes: Record<ClassName, string[]> = {
@@ -25,41 +37,39 @@ const classes: Record<ClassName, string[]> = {
   ],
 }
 
-function firstNames(students: string[]): string[] {
-  return students.map(s => s.split(' ')[0])
-}
-
 function App() {
   const classNames = useMemo(() => Object.keys(classes) as ClassName[], [])
   const [selectedClass, setSelectedClass] = useState<ClassName>('AM')
   const [studentStatuses, setStudentStatuses] = useState<Record<string, Status>>({})
 
   const students = classes[selectedClass]
-  const names = firstNames(students)
 
   function tap(key: string) {
     setStudentStatuses(current => {
-      const current_status = current[key] ?? 'got-it'
-      const nextIndex = (STATUS_CYCLE.indexOf(current_status) + 1) % STATUS_CYCLE.length
-      return { ...current, [key]: STATUS_CYCLE[nextIndex] }
+      const cur = current[key] ?? 'got-it'
+      const next = STATUS_CYCLE[(STATUS_CYCLE.indexOf(cur) + 1) % STATUS_CYCLE.length]
+      return { ...current, [key]: next }
     })
   }
 
   return (
-    <div className="min-h-screen bg-slate-100 flex flex-col">
+    <div className="min-h-screen flex flex-col" style={{ background: '#f5f0e8' }}>
       {/* Header */}
-      <header className="bg-white shadow-sm px-4 py-3 flex items-center justify-between">
-        <h1 className="text-lg font-bold text-slate-800">Pulse</h1>
-        <div className="flex gap-1 bg-slate-100 rounded-lg p-1">
+      <header className="bg-white px-5 py-4 flex items-center justify-between shadow-sm">
+        <div>
+          <h1 className="text-xl font-bold text-slate-800 leading-none">Pulse</h1>
+          <p className="text-xs text-slate-400 mt-0.5">Academic Tracker</p>
+        </div>
+        <div className="flex gap-1 bg-slate-100 rounded-xl p-1">
           {classNames.map(cn => (
             <button
               key={cn}
               type="button"
               onClick={() => setSelectedClass(cn)}
-              className={`px-4 py-1.5 rounded-md text-sm font-semibold transition ${
+              className={`px-5 py-1.5 rounded-lg text-sm font-semibold transition-all ${
                 selectedClass === cn
-                  ? 'bg-slate-800 text-white'
-                  : 'text-slate-600 hover:text-slate-800'
+                  ? 'bg-teal-500 text-white shadow-sm'
+                  : 'text-slate-500 hover:text-slate-700'
               }`}
             >
               {cn}
@@ -69,19 +79,33 @@ function App() {
       </header>
 
       {/* Grid */}
-      <main className="flex-1 p-4">
+      <main className="flex-1 px-4 py-5">
         <div className="grid grid-cols-4 gap-3">
-          {names.map((name, i) => {
-            const key = `${selectedClass}-${students[i]}`
+          {students.map((student) => {
+            const key = `${selectedClass}-${student}`
             const status = studentStatuses[key] ?? 'got-it'
+            const firstName = student.split(' ')[0]
+            const initial = firstName[0].toUpperCase()
+
             return (
               <button
                 key={key}
                 type="button"
                 onClick={() => tap(key)}
-                className={`flex flex-col items-center justify-center rounded-full aspect-square text-center font-semibold text-sm shadow-md active:scale-95 transition-transform ${STATUS_STYLES[status]}`}
+                className="flex flex-col items-center gap-2 bg-white rounded-2xl py-3 px-1 shadow-sm active:scale-95 transition-transform relative"
               >
-                {name}
+                {/* Status dot */}
+                <span className={`absolute top-2 right-2 w-2 h-2 rounded-full ${STATUS_DOT[status]}`} />
+
+                {/* Initial circle */}
+                <div className={`w-12 h-12 rounded-full flex items-center justify-center text-lg font-bold ${STATUS_INITIAL_BG[status]} ${STATUS_RING[status]}`}>
+                  {initial}
+                </div>
+
+                {/* Name */}
+                <span className="text-xs font-semibold text-slate-700 leading-tight text-center px-1">
+                  {firstName}
+                </span>
               </button>
             )
           })}
