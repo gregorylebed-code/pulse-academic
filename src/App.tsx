@@ -81,6 +81,7 @@ function App() {
 
   // History state
   const [historyTab, setHistoryTab] = useState<HistoryTab>('student')
+  const [historyClass, setHistoryClass] = useState<ClassName>('AM')
   const [historyData, setHistoryData] = useState<HistoryRow[]>([])
   const [historyLoading, setHistoryLoading] = useState(false)
   const [selectedStudent, setSelectedStudent] = useState<string | null>(null)
@@ -168,13 +169,15 @@ function App() {
   const students = classes[selectedClass]
 
   // History derived data
+  const filteredHistoryData = historyData.filter(r => r.class === historyClass)
+
   const studentHistory = selectedStudent
     ? historyData.filter(r => r.student === selectedStudent).sort((a, b) => a.date.localeCompare(b.date))
     : []
 
   const lessonGroups = useMemo(() => {
     const map = new Map<string, HistoryRow[]>()
-    for (const row of historyData) {
+    for (const row of filteredHistoryData) {
       const key = `${row.date}||${row.lesson}`
       if (!map.has(key)) map.set(key, [])
       map.get(key)!.push(row)
@@ -333,7 +336,7 @@ function App() {
         /* History screen */
         <main className="flex-1 flex flex-col">
           {/* Tabs */}
-          <div className="bg-white border-t border-slate-100 px-4 pt-3 pb-0 shadow-sm">
+          <div className="bg-white border-t border-slate-100 px-4 pt-3 pb-0 shadow-sm flex items-end justify-between">
             <div className="flex gap-0">
               {(['student', 'lesson'] as HistoryTab[]).map(tab => (
                 <button
@@ -347,6 +350,22 @@ function App() {
                   }`}
                 >
                   By {tab}
+                </button>
+              ))}
+            </div>
+            <div className="flex gap-1 bg-slate-100 rounded-xl p-1 mb-2">
+              {classNames.map(cn => (
+                <button
+                  key={cn}
+                  type="button"
+                  onClick={() => { setHistoryClass(cn); setSelectedStudent(null); setSelectedLesson(null) }}
+                  className={`px-4 py-1 rounded-lg text-xs font-semibold transition-all ${
+                    historyClass === cn
+                      ? 'bg-teal-500 text-white shadow-sm'
+                      : 'text-slate-500 hover:text-slate-700'
+                  }`}
+                >
+                  {cn}
                 </button>
               ))}
             </div>
@@ -388,8 +407,8 @@ function App() {
               ) : (
                 /* Student list */
                 <div className="flex flex-col gap-2">
-                  {allStudents.map(s => {
-                    const rows = historyData.filter(r => r.student === s.name)
+                  {allStudents.filter(s => s.class === historyClass).map(s => {
+                    const rows = filteredHistoryData.filter(r => r.student === s.name)
                     const needsHelp = rows.filter(r => r.status === 'needs-help').length
                     const almost = rows.filter(r => r.status === 'almost').length
                     return (
