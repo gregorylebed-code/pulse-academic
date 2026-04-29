@@ -50,9 +50,31 @@ function App() {
   const [activeLesson, setActiveLesson] = useState('')
   const [studentStatuses, setStudentStatuses] = useState<Record<string, Status>>({})
   const [loading, setLoading] = useState(false)
+  const [todaysLessons, setTodaysLessons] = useState<string[]>([])
 
   const today = todayISO()
 
+  // On mount: check if there are lessons saved today and auto-restore
+  useEffect(() => {
+    setLoading(true)
+    supabase
+      .from('student_statuses')
+      .select('lesson')
+      .eq('date', today)
+      .then(({ data }: { data: { lesson: string }[] | null }) => {
+        if (!data || data.length === 0) { setLoading(false); return }
+        const lessons = [...new Set(data.map(r => r.lesson))]
+        if (lessons.length === 1) {
+          setActiveLesson(lessons[0])
+          setLessonInput(lessons[0])
+        } else {
+          setTodaysLessons(lessons)
+          setLoading(false)
+        }
+      })
+  }, [today])
+
+  // Load statuses whenever active lesson changes
   useEffect(() => {
     if (!activeLesson) return
     setLoading(true)
@@ -125,7 +147,30 @@ function App() {
 
       {/* Lesson bar */}
       <div className="bg-white border-t border-slate-100 px-4 py-3 flex gap-2 items-center shadow-sm">
-        {activeLesson ? (
+        {todaysLessons.length > 1 && !activeLesson ? (
+          <div className="w-full">
+            <p className="text-xs text-slate-400 mb-2">Pick today's lesson:</p>
+            <div className="flex flex-col gap-1.5">
+              {todaysLessons.map(l => (
+                <button
+                  key={l}
+                  type="button"
+                  onClick={() => { setActiveLesson(l); setLessonInput(l); setTodaysLessons([]); }}
+                  className="text-left px-4 py-2 bg-slate-100 rounded-xl text-sm font-semibold text-slate-700 hover:bg-teal-50 hover:text-teal-700"
+                >
+                  {l}
+                </button>
+              ))}
+              <button
+                type="button"
+                onClick={() => setTodaysLessons([])}
+                className="text-xs text-slate-400 hover:text-slate-600 text-left px-1 pt-1"
+              >
+                + Start a new lesson
+              </button>
+            </div>
+          </div>
+        ) : activeLesson ? (
           <div className="flex items-center gap-3 w-full">
             <div className="flex-1 min-w-0">
               <p className="text-xs text-slate-400 leading-none mb-0.5">Today's lesson</p>
