@@ -38,27 +38,47 @@ const classes: Record<ClassName, string[]> = {
   ],
 }
 
+function todayISO() {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
 function App() {
   const classNames = useMemo(() => Object.keys(classes) as ClassName[], [])
   const [selectedClass, setSelectedClass] = useState<ClassName>('AM')
+  const [lessonInput, setLessonInput] = useState('')
+  const [activeLesson, setActiveLesson] = useState('')
   const [studentStatuses, setStudentStatuses] = useState<Record<string, Status>>({})
-  const [loaded, setLoaded] = useState(false)
+  const [loading, setLoading] = useState(false)
+
+  const today = todayISO()
 
   useEffect(() => {
+    if (!activeLesson) return
+    setLoading(true)
     supabase
       .from('student_statuses')
       .select('class, student, status')
+      .eq('lesson', activeLesson)
+      .eq('date', today)
       .then(({ data }: { data: { class: string; student: string; status: string }[] | null }) => {
+        const map: Record<string, Status> = {}
         if (data) {
-          const map: Record<string, Status> = {}
           for (const row of data) {
             map[`${row.class}-${row.student}`] = row.status as Status
           }
-          setStudentStatuses(map)
         }
-        setLoaded(true)
+        setStudentStatuses(map)
+        setLoading(false)
       })
-  }, [])
+  }, [activeLesson, today])
+
+  function startLesson() {
+    const lesson = lessonInput.trim()
+    if (!lesson) return
+    setActiveLesson(lesson)
+    setStudentStatuses({})
+  }
 
   function tap(key: string, className: ClassName, student: string) {
     setStudentStatuses(current => {
@@ -66,7 +86,10 @@ function App() {
       const next = STATUS_CYCLE[(STATUS_CYCLE.indexOf(cur) + 1) % STATUS_CYCLE.length]
       supabase
         .from('student_statuses')
-        .upsert({ class: className, student, status: next }, { onConflict: 'class,student' })
+        .upsert(
+          { class: className, student, lesson: activeLesson, date: today, status: next },
+          { onConflict: 'class,student,lesson,date' }
+        )
         .then()
       return { ...current, [key]: next }
     })
@@ -100,9 +123,51 @@ function App() {
         </div>
       </header>
 
+      {/* Lesson bar */}
+      <div className="bg-white border-t border-slate-100 px-4 py-3 flex gap-2 items-center shadow-sm">
+        {activeLesson ? (
+          <div className="flex items-center gap-3 w-full">
+            <div className="flex-1 min-w-0">
+              <p className="text-xs text-slate-400 leading-none mb-0.5">Today's lesson</p>
+              <p className="text-sm font-semibold text-slate-700 truncate">{activeLesson}</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => { setActiveLesson(''); setLessonInput(''); }}
+              className="text-xs text-slate-400 hover:text-slate-600 shrink-0"
+            >
+              Change
+            </button>
+          </div>
+        ) : (
+          <>
+            <input
+              type="text"
+              value={lessonInput}
+              onChange={e => setLessonInput(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && startLesson()}
+              placeholder="What are you teaching today?"
+              className="flex-1 text-sm bg-slate-100 rounded-xl px-4 py-2 outline-none text-slate-700 placeholder-slate-400"
+            />
+            <button
+              type="button"
+              onClick={startLesson}
+              disabled={!lessonInput.trim()}
+              className="px-4 py-2 bg-teal-500 text-white text-sm font-semibold rounded-xl disabled:opacity-40 shrink-0"
+            >
+              Start
+            </button>
+          </>
+        )}
+      </div>
+
       {/* Grid */}
       <main className="flex-1 px-4 py-5">
-        {!loaded ? (
+        {!activeLesson ? (
+          <div className="flex items-center justify-center h-40 text-slate-400 text-sm">
+            Enter today's lesson to begin
+          </div>
+        ) : loading ? (
           <div className="flex items-center justify-center h-40 text-slate-400 text-sm">Loading...</div>
         ) : (
           <div className="grid grid-cols-4 gap-3">
