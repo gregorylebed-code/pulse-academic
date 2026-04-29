@@ -1,11 +1,20 @@
 import { useMemo, useState } from 'react'
 
-type ClassName = 'Class 1' | 'Class 2'
+type ClassName = 'AM' | 'PM'
 type Status = 'got-it' | 'almost' | 'needs-help'
 
 const classes: Record<ClassName, string[]> = {
-  'Class 1': ['Ava Johnson', 'Mateo Garcia', 'Noah Patel', 'Sophia Kim', 'Liam Brown'],
-  'Class 2': ['Mia Wilson', 'Ethan Davis', 'Isabella Martinez', 'Lucas Nguyen', 'Emma Clark'],
+  'AM': [
+    'Rian B.', 'Ryleigh C.', 'Luciano D.', 'Carter H.', 'Jaron K.',
+    'Gemma K.', 'Sammie L.', 'Charlotte M.', 'Graci P.', 'Sloan R.',
+    'Grayson R.', 'Julianna S.', 'Lily S.', 'Ava T.', 'Eloise T.', 'Alexa W.',
+  ],
+  'PM': [
+    'Ire A.', 'Olivia A.', 'Carter A.', 'Ella C.', 'Legacy C.', 'Jovie D.',
+    'Logan D.', 'Charles F.', 'Olivia G.', 'Grayson G.', 'Isabella G.',
+    'AdaBella H.', 'Trey H.', 'Ezra K.', 'Giada L.', 'Luca L.', 'Riley M.',
+    'Julia N.', 'Michael R.', 'Reagan S.', 'William S.', 'Chase S.', 'Emmett V.', 'Chase W.',
+  ],
 }
 
 const statuses: Array<{
