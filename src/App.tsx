@@ -48,7 +48,7 @@ function App() {
     supabase
       .from('student_statuses')
       .select('class, student, status')
-      .then(({ data }) => {
+      .then(({ data }: { data: { class: string; student: string; status: string }[] | null }) => {
         if (data) {
           const map: Record<string, Status> = {}
           for (const row of data) {
