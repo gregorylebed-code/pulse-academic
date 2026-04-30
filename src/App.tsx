@@ -138,6 +138,7 @@ function App() {
   const [editingDay, setEditingDay] = useState<string | null>(null)
   const [editDraft, setEditDraft] = useState<DayLesson | null>(null)
   const [swapSource, setSwapSource] = useState<string | null>(null)
+  const [skipConfirmDay, setSkipConfirmDay] = useState<string | null>(null)
   const [planSaving, setPlanSaving] = useState(false)
   const [planSaved, setPlanSaved] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -345,11 +346,35 @@ function App() {
     await persistSchedule(schedule)
   }
 
-  async function skipDay(dateISO: string) {
+  async function skipDay(dateISO: string, pushBack: boolean) {
     if (!savedPlan) return
     const schedule = { ...savedPlan.schedule }
-    delete schedule[dateISO]
+    if (!pushBack) {
+      delete schedule[dateISO]
+    } else {
+      // Remove this day and shift all later days in the week forward by one school day
+      const [y, m, d] = dateISO.split('-').map(Number)
+      const skippedDate = new Date(y, m - 1, d)
+      // Collect days after the skipped date, sorted ascending
+      const laterDates = Object.keys(schedule)
+        .filter(k => new Date(...(k.split('-').map(Number) as [number, number, number])) > skippedDate)
+        .sort()
+      // Shift each one forward by one calendar day (skip weekends)
+      const shifted: Record<string, DayLesson> = {}
+      for (const k of laterDates) {
+        const [ky, km, kd] = k.split('-').map(Number)
+        const next = new Date(ky, km - 1, kd + 1)
+        if (next.getDay() === 6) next.setDate(next.getDate() + 2)
+        if (next.getDay() === 0) next.setDate(next.getDate() + 1)
+        const nextISO = `${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, '0')}-${String(next.getDate()).padStart(2, '0')}`
+        shifted[nextISO] = schedule[k]
+        delete schedule[k]
+      }
+      delete schedule[dateISO]
+      Object.assign(schedule, shifted)
+    }
     setExpandedDay(null)
+    setSkipConfirmDay(null)
     await persistSchedule(schedule)
   }
 
@@ -574,7 +599,17 @@ function App() {
                           <button type="button" onClick={() => startEdit(dateISO)} className="text-xs font-semibold px-3 py-1.5 bg-slate-100 text-slate-600 rounded-xl hover:bg-teal-50 hover:text-teal-700">✏️ Edit</button>
                           <button type="button" onClick={() => handleSwap(dateISO)} className="text-xs font-semibold px-3 py-1.5 bg-slate-100 text-slate-600 rounded-xl hover:bg-amber-50 hover:text-amber-700">⇄ Swap day</button>
                           {lesson && <button type="button" onClick={() => copyToNext(dateISO)} className="text-xs font-semibold px-3 py-1.5 bg-slate-100 text-slate-600 rounded-xl hover:bg-blue-50 hover:text-blue-700">→ Copy to next day</button>}
-                          {lesson && <button type="button" onClick={() => skipDay(dateISO)} className="text-xs font-semibold px-3 py-1.5 bg-slate-100 text-red-400 rounded-xl hover:bg-red-50">✕ Skip day</button>}
+                          {lesson && skipConfirmDay !== dateISO && (
+                            <button type="button" onClick={() => setSkipConfirmDay(dateISO)} className="text-xs font-semibold px-3 py-1.5 bg-slate-100 text-red-400 rounded-xl hover:bg-red-50">✕ Skip day</button>
+                          )}
+                          {lesson && skipConfirmDay === dateISO && (
+                            <div className="flex flex-col gap-1.5 w-full mt-1">
+                              <p className="text-xs text-slate-500 font-semibold">Skip how?</p>
+                              <button type="button" onClick={() => skipDay(dateISO, false)} className="text-xs font-semibold px-3 py-1.5 bg-red-50 text-red-500 rounded-xl text-left">✕ Just remove this day</button>
+                              <button type="button" onClick={() => skipDay(dateISO, true)} className="text-xs font-semibold px-3 py-1.5 bg-amber-50 text-amber-600 rounded-xl text-left">⇩ Remove and push remaining days back</button>
+                              <button type="button" onClick={() => setSkipConfirmDay(null)} className="text-xs text-slate-400 px-1">cancel</button>
+                            </div>
+                          )}
                         </div>
                       </div>
                     )}
