@@ -495,7 +495,7 @@ export default function App({ userId, isDemo = false, onSignOut }: Props) {
     supabase
       .from('week_plans')
       .select('id, week_start, plan_json, tracked_subjects')
-      .eq('user_id', userId)
+      .eq('class_id', selectedClassId)
       .eq('week_start', weekStart)
       .maybeSingle()
       .then(({ data }) => {
@@ -505,7 +505,7 @@ export default function App({ userId, isDemo = false, onSignOut }: Props) {
           if (tracked.length > 0) setActiveSubject(tracked[0])
         }
       })
-  }, [userId, isDemo, weekStart, classes.length])
+  }, [userId, isDemo, weekStart, classes.length, selectedClassId])
 
   // ── Load history when switching to history screen ────────────────────────
 
@@ -550,13 +550,13 @@ export default function App({ userId, isDemo = false, onSignOut }: Props) {
     supabase
       .from('week_plans')
       .select('id, week_start, plan_json, tracked_subjects')
-      .eq('user_id', userId)
+      .eq('class_id', selectedClassId)
       .eq('week_start', weekStart)
       .maybeSingle()
       .then(({ data }) => {
         if (data) setSavedPlan({ weekStart: data.week_start, schedule: data.plan_json, trackedSubjects: data.tracked_subjects ?? [], planId: data.id })
       })
-  }, [screen, userId, isDemo, weekStart])
+  }, [screen, userId, isDemo, weekStart, selectedClassId])
 
   // ── Lesson actions ────────────────────────────────────────────────────────
 
@@ -705,7 +705,7 @@ export default function App({ userId, isDemo = false, onSignOut }: Props) {
     }
     const { data } = await supabase
       .from('week_plans')
-      .upsert({ user_id: userId, week_start: weekStart, plan_json: filtered, tracked_subjects: subjectChoices }, { onConflict: 'user_id,week_start' })
+      .upsert({ user_id: userId, class_id: selectedClassId, week_start: weekStart, plan_json: filtered, tracked_subjects: subjectChoices }, { onConflict: 'class_id,week_start' })
       .select('id')
       .single()
     setSavedPlan({ weekStart, schedule: filtered, trackedSubjects: subjectChoices, planId: data?.id })
@@ -724,7 +724,7 @@ export default function App({ userId, isDemo = false, onSignOut }: Props) {
     setPlanSaving(true)
     await supabase
       .from('week_plans')
-      .upsert({ user_id: userId, week_start: weekStart, plan_json: schedule, tracked_subjects: savedPlan.trackedSubjects }, { onConflict: 'user_id,week_start' })
+      .upsert({ user_id: userId, class_id: selectedClassId, week_start: weekStart, plan_json: schedule, tracked_subjects: savedPlan.trackedSubjects }, { onConflict: 'class_id,week_start' })
     setSavedPlan({ ...savedPlan, schedule })
     const todayDay = schedule[today]
     const subj = activeSubject ?? savedPlan.trackedSubjects[0]
