@@ -149,6 +149,8 @@ function App() {
   const [subjectChoices, setSubjectChoices] = useState<string[]>([])
   // Active subject tab on tracker
   const [activeSubject, setActiveSubject] = useState<string | null>(null)
+  // Editing a past (or future) lesson — overrides today
+  const [editingHistory, setEditingHistory] = useState<{ lesson: string; date: string; className: ClassName } | null>(null)
 
   // History state
   const [historyTab, setHistoryTab] = useState<HistoryTab>('student')
@@ -257,33 +259,80 @@ function App() {
 
   function switchSubject(subject: string) {
     setActiveSubject(subject)
-    setActiveLesson('')
-    setLessonInput('')
-    setStudentStatuses({})
     setExitTickets([])
     setActiveExitTicket(null)
     setShowExitTickets(false)
     setTodaysLessons([])
-    // Pre-fill lesson input from plan if available
-    if (savedPlan) {
-      const todayDay = savedPlan.schedule[today]
-      if (todayDay?.[subject]) setLessonInput(todayDay[subject].title)
+    // Auto-start from plan if available, otherwise clear for manual entry
+    const planTitle = savedPlan?.schedule[today]?.[subject]?.title
+    if (planTitle) {
+      setLessonInput(planTitle)
+      setActiveLesson(planTitle)
+      setStudentStatuses({})
+      // Load any statuses already recorded for this lesson today
+      setLoading(true)
+      supabase
+        .from('student_statuses')
+        .select('class, student, status')
+        .eq('lesson', planTitle)
+        .eq('date', today)
+        .then(({ data }: { data: { class: string; student: string; status: string }[] | null }) => {
+          const map: Record<string, Status> = {}
+          if (data) for (const row of data) map[`${row.class}-${row.student}`] = row.status as Status
+          setStudentStatuses(map)
+          setLoading(false)
+        })
+    } else {
+      setActiveLesson('')
+      setLessonInput('')
+      setStudentStatuses({})
     }
   }
 
   function tap(key: string, className: ClassName, student: string) {
+    const lessonDate = editingHistory?.date ?? today
+    const lessonName = editingHistory?.lesson ?? activeLesson
     setStudentStatuses(current => {
       const cur = current[key] ?? 'got-it'
       const next = STATUS_CYCLE[(STATUS_CYCLE.indexOf(cur) + 1) % STATUS_CYCLE.length]
       supabase
         .from('student_statuses')
         .upsert(
-          { class: className, student, lesson: activeLesson, date: today, status: next, subject: activeSubject },
+          { class: className, student, lesson: lessonName, date: lessonDate, status: next, subject: activeSubject },
           { onConflict: 'class,student,lesson,date' }
         )
         .then()
       return { ...current, [key]: next }
     })
+  }
+
+  function openHistoryEdit(lesson: string, date: string, className: ClassName) {
+    setEditingHistory({ lesson, date, className })
+    setSelectedClass(className)
+    setScreen('tracker')
+    setActiveLesson(lesson)
+    setLessonInput(lesson)
+    setStudentStatuses({})
+    setLoading(true)
+    supabase
+      .from('student_statuses')
+      .select('class, student, status')
+      .eq('lesson', lesson)
+      .eq('date', date)
+      .then(({ data }: { data: { class: string; student: string; status: string }[] | null }) => {
+        const map: Record<string, Status> = {}
+        if (data) for (const row of data) map[`${row.class}-${row.student}`] = row.status as Status
+        setStudentStatuses(map)
+        setLoading(false)
+      })
+  }
+
+  function closeHistoryEdit() {
+    setEditingHistory(null)
+    setActiveLesson('')
+    setLessonInput('')
+    setStudentStatuses({})
+    setScreen('history')
   }
 
   async function handleSuggestExitTicket() {
@@ -805,9 +854,24 @@ function App() {
         </main>
       ) : screen === 'tracker' ? (
         <>
+          {/* Editing past lesson banner */}
+          {editingHistory && (
+            <div className="bg-amber-50 border-b border-amber-100 px-4 py-2.5 flex items-center justify-between">
+              <div>
+                <p className="text-xs font-semibold text-amber-700">Editing past lesson</p>
+                <p className="text-xs text-amber-600">{editingHistory.lesson} · {formatDate(editingHistory.date)}</p>
+              </div>
+              <button type="button" onClick={closeHistoryEdit} className="text-xs font-semibold text-amber-700 bg-amber-100 px-3 py-1.5 rounded-xl">Done</button>
+            </div>
+          )}
           {/* Lesson bar */}
           <div className="bg-white border-t border-slate-100 px-4 py-3 flex gap-2 items-center shadow-sm">
-            {todaysLessons.length > 1 && !activeLesson ? (
+            {editingHistory ? (
+              <div className="flex-1 min-w-0">
+                <p className="text-xs text-slate-400 leading-none mb-0.5">Editing</p>
+                <p className="text-sm font-semibold text-slate-700 truncate">{editingHistory.lesson}</p>
+              </div>
+            ) : todaysLessons.length > 1 && !activeLesson ? (
               <div className="w-full">
                 <p className="text-xs text-slate-400 mb-2">Pick today's lesson:</p>
                 <div className="flex flex-col gap-1.5">
@@ -1042,8 +1106,19 @@ function App() {
               selectedLesson ? (
                 <div>
                   <button type="button" onClick={() => setSelectedLesson(null)} className="text-sm text-teal-600 mb-3 flex items-center gap-1">← All lessons</button>
-                  <h2 className="text-base font-bold text-slate-800">{selectedLesson.lesson}</h2>
-                  <p className="text-xs text-slate-400 mb-3">{formatDate(selectedLesson.date)}</p>
+                  <div className="flex items-start justify-between mb-3">
+                    <div>
+                      <h2 className="text-base font-bold text-slate-800">{selectedLesson.lesson}</h2>
+                      <p className="text-xs text-slate-400">{formatDate(selectedLesson.date)}</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => openHistoryEdit(selectedLesson.lesson, selectedLesson.date, historyClass)}
+                      className="text-xs font-semibold text-teal-600 bg-teal-50 px-3 py-1.5 rounded-xl shrink-0 ml-3"
+                    >
+                      ✏️ Edit responses
+                    </button>
+                  </div>
                   {lessonDetail.length === 0 ? (
                     <p className="text-slate-400 text-sm">No data.</p>
                   ) : (
