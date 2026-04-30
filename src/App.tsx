@@ -9,7 +9,7 @@ import {
 // ── Types ──────────────────────────────────────────────────────────────────
 
 type Status = 'got-it' | 'almost' | 'needs-help'
-type Screen = 'tracker' | 'history' | 'plan'
+type Screen = 'tracker' | 'history' | 'plan' | 'roster'
 type HistoryTab = 'student' | 'lesson'
 type NameFormat = 'full' | 'first' | 'initials'
 
@@ -210,6 +210,75 @@ export default function App({ userId, isDemo = false, onSignOut }: Props) {
   const [historyLoading, setHistoryLoading] = useState(false)
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null)
   const [selectedLesson, setSelectedLesson] = useState<{ lesson_id: string; lesson_title: string; date: string } | null>(null)
+
+  // Roster management
+  const [rosterNewStudentName, setRosterNewStudentName] = useState<Record<string, string>>({})
+  const [rosterRenaming, setRosterRenaming] = useState<string | null>(null)
+  const [rosterRenameValue, setRosterRenameValue] = useState('')
+  const [rosterConfirmRemove, setRosterConfirmRemove] = useState<{ studentId: string; classId: string } | null>(null)
+  const [rosterAddingClass, setRosterAddingClass] = useState(false)
+  const [rosterNewClassName, setRosterNewClassName] = useState('')
+  const [rosterNewClassSubject, setRosterNewClassSubject] = useState('Math')
+  const [rosterSaving, setRosterSaving] = useState(false)
+
+  const SUBJECTS = ['Math', 'ELA', 'Science', 'Social Studies', 'Specials', 'Other']
+
+  async function rosterAddStudent(classId: string) {
+    const name = (rosterNewStudentName[classId] ?? '').trim()
+    if (!name || rosterSaving) return
+    setRosterSaving(true)
+    // Insert student scoped to this teacher
+    const { data: student } = await supabase
+      .from('students')
+      .insert({ user_id: userId, name })
+      .select('id, name')
+      .single()
+    if (student) {
+      await supabase.from('student_classes').insert({ student_id: student.id, class_id: classId })
+      setStudentsByClass(cur => ({ ...cur, [classId]: [...(cur[classId] ?? []), student] }))
+      setRosterNewStudentName(cur => ({ ...cur, [classId]: '' }))
+    }
+    setRosterSaving(false)
+  }
+
+  async function rosterRemoveStudent(studentId: string, classId: string) {
+    setRosterSaving(true)
+    await supabase.from('student_classes').delete().eq('student_id', studentId).eq('class_id', classId)
+    setStudentsByClass(cur => ({ ...cur, [classId]: (cur[classId] ?? []).filter(s => s.id !== studentId) }))
+    setRosterConfirmRemove(null)
+    setRosterSaving(false)
+  }
+
+  async function rosterRenameClass(classId: string) {
+    const name = rosterRenameValue.trim()
+    if (!name) return
+    setRosterSaving(true)
+    await supabase.from('classes').update({ name }).eq('id', classId)
+    setClasses(cur => cur.map(c => c.id === classId ? { ...c, name } : c))
+    setRosterRenaming(null)
+    setRosterRenameValue('')
+    setRosterSaving(false)
+  }
+
+  async function rosterAddClass() {
+    const name = rosterNewClassName.trim()
+    if (!name || classes.length >= 6) return
+    setRosterSaving(true)
+    const display_order = classes.length
+    const { data: cls } = await supabase
+      .from('classes')
+      .insert({ user_id: userId, name, subject: rosterNewClassSubject, display_order })
+      .select('id, name, subject, display_order')
+      .single()
+    if (cls) {
+      setClasses(cur => [...cur, cls])
+      setStudentsByClass(cur => ({ ...cur, [cls.id]: [] }))
+    }
+    setRosterNewClassName('')
+    setRosterNewClassSubject('Math')
+    setRosterAddingClass(false)
+    setRosterSaving(false)
+  }
 
   // Name format
   const [nameFormat, setNameFormat] = useState<NameFormat>(() =>
@@ -714,7 +783,16 @@ export default function App({ userId, isDemo = false, onSignOut }: Props) {
             >
               {screen === 'history' ? 'Done' : 'History'}
             </button>
-            {screen === 'plan' && (
+            {!isDemo && (
+              <button
+                type="button"
+                onClick={() => setScreen(screen === 'roster' ? 'tracker' : 'roster')}
+                className={`text-sm font-semibold ${screen === 'roster' ? 'text-teal-600' : 'text-slate-400 hover:text-slate-600'}`}
+              >
+                {screen === 'roster' ? 'Done' : 'Roster'}
+              </button>
+            )}
+            {(screen === 'plan') && (
               <button type="button" onClick={() => setScreen('tracker')} className="text-sm font-semibold text-slate-400 hover:text-slate-600">Done</button>
             )}
             <button
@@ -1152,6 +1230,114 @@ export default function App({ userId, isDemo = false, onSignOut }: Props) {
                 </div>
               )
             )}
+          </div>
+        </main>
+      )}
+
+      {/* ── ROSTER SCREEN ── */}
+      {screen === 'roster' && (
+        <main className="flex-1 px-4 py-5 max-w-lg mx-auto w-full">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-base font-bold text-slate-800">Roster</h2>
+            {classes.length < 6 && !rosterAddingClass && (
+              <button type="button" onClick={() => setRosterAddingClass(true)} className="text-xs font-semibold text-teal-600 hover:text-teal-700 bg-teal-50 px-3 py-1.5 rounded-xl">
+                + Add class
+              </button>
+            )}
+          </div>
+
+          {rosterAddingClass && (
+            <div className="bg-white rounded-2xl shadow-sm px-4 py-4 mb-4">
+              <p className="text-sm font-semibold text-slate-700 mb-3">New class</p>
+              <div className="flex flex-col gap-2">
+                <input
+                  type="text"
+                  value={rosterNewClassName}
+                  onChange={e => setRosterNewClassName(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && rosterAddClass()}
+                  placeholder="Class name (e.g. Period 1)"
+                  className="text-sm bg-slate-50 rounded-xl px-3 py-2 outline-none border border-slate-100 focus:border-teal-300"
+                />
+                <select
+                  value={rosterNewClassSubject}
+                  onChange={e => setRosterNewClassSubject(e.target.value)}
+                  className="text-sm bg-slate-50 rounded-xl px-3 py-2 outline-none border border-slate-100 focus:border-teal-300"
+                >
+                  {SUBJECTS.map(s => <option key={s}>{s}</option>)}
+                </select>
+              </div>
+              <div className="flex gap-2 mt-3">
+                <button type="button" onClick={rosterAddClass} disabled={!rosterNewClassName.trim() || rosterSaving} className="px-4 py-2 bg-teal-500 text-white text-sm font-semibold rounded-xl disabled:opacity-40">
+                  {rosterSaving ? 'Saving…' : 'Add'}
+                </button>
+                <button type="button" onClick={() => { setRosterAddingClass(false); setRosterNewClassName('') }} className="px-4 py-2 bg-slate-100 text-slate-500 text-sm font-semibold rounded-xl">Cancel</button>
+              </div>
+            </div>
+          )}
+
+          <div className="flex flex-col gap-4">
+            {classes.map(cls => {
+              const students = studentsByClass[cls.id] ?? []
+              const isRenaming = rosterRenaming === cls.id
+              return (
+                <div key={cls.id} className="bg-white rounded-2xl shadow-sm px-4 py-4">
+                  {isRenaming ? (
+                    <div className="flex gap-2 mb-3">
+                      <input
+                        type="text"
+                        value={rosterRenameValue}
+                        onChange={e => setRosterRenameValue(e.target.value)}
+                        onKeyDown={e => e.key === 'Enter' && rosterRenameClass(cls.id)}
+                        autoFocus
+                        className="flex-1 text-sm bg-slate-50 rounded-xl px-3 py-1.5 outline-none border border-slate-100 focus:border-teal-300 font-semibold"
+                      />
+                      <button type="button" onClick={() => rosterRenameClass(cls.id)} disabled={rosterSaving} className="px-3 py-1.5 bg-teal-500 text-white text-xs font-semibold rounded-xl disabled:opacity-40">Save</button>
+                      <button type="button" onClick={() => setRosterRenaming(null)} className="px-3 py-1.5 bg-slate-100 text-slate-500 text-xs font-semibold rounded-xl">Cancel</button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-between mb-3">
+                      <div>
+                        <p className="text-sm font-bold text-slate-800">{cls.name}</p>
+                        <p className="text-xs text-slate-400">{cls.subject} · {students.length} student{students.length !== 1 ? 's' : ''}</p>
+                      </div>
+                      <button type="button" onClick={() => { setRosterRenaming(cls.id); setRosterRenameValue(cls.name) }} className="text-xs text-slate-400 hover:text-teal-600">Rename</button>
+                    </div>
+                  )}
+
+                  <div className="flex flex-col gap-1.5 mb-3">
+                    {students.length === 0 && <p className="text-xs text-slate-300 italic">No students yet.</p>}
+                    {students.map(s => (
+                      <div key={s.id} className="flex items-center justify-between py-1">
+                        <span className="text-sm text-slate-700">{s.name}</span>
+                        {rosterConfirmRemove?.studentId === s.id && rosterConfirmRemove?.classId === cls.id ? (
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs text-slate-400">Remove?</span>
+                            <button type="button" onClick={() => rosterRemoveStudent(s.id, cls.id)} disabled={rosterSaving} className="text-xs font-semibold text-red-500 hover:text-red-700 disabled:opacity-40">Yes</button>
+                            <button type="button" onClick={() => setRosterConfirmRemove(null)} className="text-xs text-slate-400 hover:text-slate-600">No</button>
+                          </div>
+                        ) : (
+                          <button type="button" onClick={() => setRosterConfirmRemove({ studentId: s.id, classId: cls.id })} className="text-xs text-slate-300 hover:text-red-400">✕</button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={rosterNewStudentName[cls.id] ?? ''}
+                      onChange={e => setRosterNewStudentName(cur => ({ ...cur, [cls.id]: e.target.value }))}
+                      onKeyDown={e => e.key === 'Enter' && rosterAddStudent(cls.id)}
+                      placeholder="Add student…"
+                      className="flex-1 text-sm bg-slate-50 rounded-xl px-3 py-2 outline-none border border-slate-100 focus:border-teal-300"
+                    />
+                    <button type="button" onClick={() => rosterAddStudent(cls.id)} disabled={!(rosterNewStudentName[cls.id] ?? '').trim() || rosterSaving} className="px-3 py-2 bg-teal-500 text-white text-sm font-semibold rounded-xl disabled:opacity-40">
+                      Add
+                    </button>
+                  </div>
+                </div>
+              )
+            })}
           </div>
         </main>
       )}
