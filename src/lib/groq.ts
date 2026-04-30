@@ -60,6 +60,18 @@ ${text.slice(0, 6000)}`
   return JSON.parse(match[0])
 }
 
+export async function parseStudentNames(text: string): Promise<string[]> {
+  const prompt = `Extract student names from this text. The text may be a numbered list, bullet list, comma-separated, one per line, or mixed. Return ONLY a JSON array of clean full names (capitalized properly), no duplicates, no blank entries. No explanation, just the array.
+
+Text:
+${text.slice(0, 3000)}`
+
+  const raw = await groqChat([{ role: 'user', content: prompt }])
+  const match = raw.match(/\[[\s\S]*\]/)
+  if (!match) throw new Error('Could not parse student names')
+  return JSON.parse(match[0])
+}
+
 export async function suggestExitTickets(lesson: DayLesson | string): Promise<string[]> {
   const context = typeof lesson === 'string'
     ? `Lesson: "${lesson}"`

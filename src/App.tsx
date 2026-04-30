@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from './lib/supabase'
-import { parseLessonPlan, suggestExitTickets, type DayLesson, type WeekSchedule } from './lib/groq'
+import { parseLessonPlan, suggestExitTickets, parseStudentNames, type DayLesson, type WeekSchedule } from './lib/groq'
 import {
   DEMO_CLASSES, DEMO_STUDENTS, DEMO_STUDENT_CLASSES, DEMO_LESSONS, DEMO_CHECKINS,
   type DemoClass, type DemoStudent,
@@ -220,8 +220,36 @@ export default function App({ userId, isDemo = false, onSignOut }: Props) {
   const [rosterNewClassName, setRosterNewClassName] = useState('')
   const [rosterNewClassSubject, setRosterNewClassSubject] = useState('Math')
   const [rosterSaving, setRosterSaving] = useState(false)
+  const [rosterPasteClassId, setRosterPasteClassId] = useState<string | null>(null)
+  const [rosterPasteText, setRosterPasteText] = useState('')
+  const [rosterParsing, setRosterParsing] = useState(false)
 
   const SUBJECTS = ['Math', 'ELA', 'Science', 'Social Studies', 'Specials', 'Other']
+
+  async function rosterBulkAdd(classId: string) {
+    if (!rosterPasteText.trim() || rosterParsing) return
+    setRosterParsing(true)
+    try {
+      const names = await parseStudentNames(rosterPasteText)
+      for (const name of names) {
+        if (!name.trim()) continue
+        const { data: student } = await supabase
+          .from('students')
+          .insert({ user_id: userId, name: name.trim() })
+          .select('id, name')
+          .single()
+        if (student) {
+          await supabase.from('student_classes').insert({ student_id: student.id, class_id: classId })
+          setStudentsByClass(cur => ({ ...cur, [classId]: [...(cur[classId] ?? []), student] }))
+        }
+      }
+      setRosterPasteClassId(null)
+      setRosterPasteText('')
+    } catch (e) {
+      console.error(e)
+    }
+    setRosterParsing(false)
+  }
 
   async function rosterAddStudent(classId: string) {
     const name = (rosterNewStudentName[classId] ?? '').trim()
@@ -1541,12 +1569,39 @@ export default function App({ userId, isDemo = false, onSignOut }: Props) {
                     <button type="button" onClick={() => rosterAddStudent(cls.id)} disabled={!(rosterNewStudentName[cls.id] ?? '').trim() || rosterSaving} className="px-3 py-2 bg-teal-500 text-white text-sm font-semibold rounded-xl disabled:opacity-40">
                       Add
                     </button>
+                    <button type="button" onClick={() => { setRosterPasteClassId(cls.id); setRosterPasteText('') }} className="px-3 py-2 bg-slate-100 text-slate-600 text-sm font-semibold rounded-xl hover:bg-slate-200">
+                      Paste list
+                    </button>
                   </div>
                 </div>
               )
             })}
           </div>
         </main>
+      )}
+
+      {/* Paste roster modal */}
+      {rosterPasteClassId && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-5 flex flex-col gap-4">
+            <h3 className="font-bold text-slate-800">Paste student names</h3>
+            <p className="text-sm text-slate-500">Paste names in any format — numbered list, one per line, comma-separated, whatever you have. AI will sort it out.</p>
+            <textarea
+              autoFocus
+              value={rosterPasteText}
+              onChange={e => setRosterPasteText(e.target.value)}
+              placeholder={"1. Jane Smith\n2. John Doe\nAlex Johnson, Maria Garcia…"}
+              rows={8}
+              className="w-full text-sm bg-slate-50 rounded-xl px-3 py-2 outline-none border border-slate-100 focus:border-teal-300 resize-none"
+            />
+            <div className="flex gap-2 justify-end">
+              <button type="button" onClick={() => setRosterPasteClassId(null)} className="px-4 py-2 bg-slate-100 text-slate-500 text-sm font-semibold rounded-xl">Cancel</button>
+              <button type="button" onClick={() => rosterBulkAdd(rosterPasteClassId)} disabled={!rosterPasteText.trim() || rosterParsing} className="px-4 py-2 bg-teal-500 text-white text-sm font-semibold rounded-xl disabled:opacity-40">
+                {rosterParsing ? 'Adding…' : 'Add students'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )
