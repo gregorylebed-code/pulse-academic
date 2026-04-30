@@ -223,13 +223,13 @@ export default function App({ userId, isDemo = false, onSignOut }: Props) {
   const [rosterPasteClassId, setRosterPasteClassId] = useState<string | null>(null)
   const [rosterPasteText, setRosterPasteText] = useState('')
   const [rosterParsing, setRosterParsing] = useState(false)
-  const [rosterCopyTargetClassId, setRosterCopyTargetClassId] = useState<string | null>(null)
-  const [rosterCopySourceClassId, setRosterCopySourceClassId] = useState<string>('')
+  const [rosterCopySourceClassId, setRosterCopySourceClassId] = useState<string | null>(null)
+  const [rosterCopyTargetClassId, setRosterCopyTargetClassId] = useState<string>('')
 
   const SUBJECTS = ['Math', 'ELA', 'Science', 'Social Studies', 'Specials', 'Other']
 
   async function rosterCopyFromClass() {
-    if (!rosterCopyTargetClassId || !rosterCopySourceClassId) return
+    if (!rosterCopySourceClassId || !rosterCopyTargetClassId) return
     setRosterSaving(true)
     const sourceStudents = studentsByClass[rosterCopySourceClassId] ?? []
     const targetStudents = studentsByClass[rosterCopyTargetClassId] ?? []
@@ -249,8 +249,8 @@ export default function App({ userId, isDemo = false, onSignOut }: Props) {
       const refreshed = scRows.map(r => r.students as unknown as AppStudent).filter(Boolean)
       setStudentsByClass(cur => ({ ...cur, [rosterCopyTargetClassId!]: refreshed }))
     }
-    setRosterCopyTargetClassId(null)
-    setRosterCopySourceClassId('')
+    setRosterCopySourceClassId(null)
+    setRosterCopyTargetClassId('')
     setRosterSaving(false)
   }
 
@@ -1609,7 +1609,7 @@ export default function App({ userId, isDemo = false, onSignOut }: Props) {
                       Paste list
                     </button>
                     {classes.length > 1 && (
-                      <button type="button" onClick={() => { setRosterCopyTargetClassId(cls.id); setRosterCopySourceClassId('') }} className="px-3 py-2 bg-slate-100 text-slate-600 text-sm font-semibold rounded-xl hover:bg-slate-200">
+                      <button type="button" onClick={() => { setRosterCopySourceClassId(cls.id); setRosterCopyTargetClassId('') }} className="px-3 py-2 bg-slate-100 text-slate-600 text-sm font-semibold rounded-xl hover:bg-slate-200">
                         Copy roster
                       </button>
                     )}
@@ -1622,24 +1622,24 @@ export default function App({ userId, isDemo = false, onSignOut }: Props) {
       )}
 
       {/* Copy roster modal */}
-      {rosterCopyTargetClassId && (
+      {rosterCopySourceClassId && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-5 flex flex-col gap-4">
-            <h3 className="font-bold text-slate-800">Copy roster into {classes.find(c => c.id === rosterCopyTargetClassId)?.name}</h3>
-            <p className="text-sm text-slate-500">Pick a class to copy students from. Students already in this class will be skipped.</p>
+            <h3 className="font-bold text-slate-800">Copy roster from {classes.find(c => c.id === rosterCopySourceClassId)?.name}</h3>
+            <p className="text-sm text-slate-500">Pick a class to copy these students into. Students already in that class will be skipped.</p>
             <select
-              value={rosterCopySourceClassId}
-              onChange={e => setRosterCopySourceClassId(e.target.value)}
+              value={rosterCopyTargetClassId}
+              onChange={e => setRosterCopyTargetClassId(e.target.value)}
               className="w-full text-sm bg-slate-50 rounded-xl px-3 py-2 outline-none border border-slate-100 focus:border-teal-300"
             >
               <option value="">Select a class…</option>
-              {classes.filter(c => c.id !== rosterCopyTargetClassId).map(c => (
+              {classes.filter(c => c.id !== rosterCopySourceClassId).map(c => (
                 <option key={c.id} value={c.id}>{c.subject} · {c.name} ({(studentsByClass[c.id] ?? []).length} students)</option>
               ))}
             </select>
             <div className="flex gap-2 justify-end">
-              <button type="button" onClick={() => { setRosterCopyTargetClassId(null); setRosterCopySourceClassId('') }} className="px-4 py-2 bg-slate-100 text-slate-500 text-sm font-semibold rounded-xl">Cancel</button>
-              <button type="button" onClick={rosterCopyFromClass} disabled={!rosterCopySourceClassId || rosterSaving} className="px-4 py-2 bg-teal-500 text-white text-sm font-semibold rounded-xl disabled:opacity-40">
+              <button type="button" onClick={() => { setRosterCopySourceClassId(null); setRosterCopyTargetClassId('') }} className="px-4 py-2 bg-slate-100 text-slate-500 text-sm font-semibold rounded-xl">Cancel</button>
+              <button type="button" onClick={rosterCopyFromClass} disabled={!rosterCopyTargetClassId || rosterSaving} className="px-4 py-2 bg-teal-500 text-white text-sm font-semibold rounded-xl disabled:opacity-40">
                 {rosterSaving ? 'Copying…' : 'Copy students'}
               </button>
             </div>
