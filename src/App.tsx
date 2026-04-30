@@ -9,7 +9,7 @@ import {
 // ── Types ──────────────────────────────────────────────────────────────────
 
 type Status = 'got-it' | 'almost' | 'needs-help'
-type Screen = 'tracker' | 'history' | 'plan' | 'roster'
+type Screen = 'tracker' | 'history' | 'plan' | 'roster' | 'reports'
 type HistoryTab = 'student' | 'lesson'
 type NameFormat = 'full' | 'first' | 'initials'
 
@@ -280,6 +280,104 @@ export default function App({ userId, isDemo = false, onSignOut }: Props) {
     setRosterSaving(false)
   }
 
+  // Reports
+  type ReportRange = 'today' | 'week' | 'month' | 'custom' | 'all'
+  const [reportClassId, setReportClassId] = useState<string>('all')
+  const [reportRange, setReportRange] = useState<ReportRange>('today')
+  const [reportCustomStart, setReportCustomStart] = useState('')
+  const [reportCustomEnd, setReportCustomEnd] = useState('')
+  const [reportCopied, setReportCopied] = useState(false)
+
+  function reportDateBounds(): { start: string; end: string } | null {
+    const [y, m] = today.split('-').map(Number)
+    if (reportRange === 'today') return { start: today, end: today }
+    if (reportRange === 'week') return { start: weekStart, end: today }
+    if (reportRange === 'month') {
+      const start = `${y}-${String(m).padStart(2, '0')}-01`
+      return { start, end: today }
+    }
+    if (reportRange === 'custom') {
+      if (!reportCustomStart || !reportCustomEnd) return null
+      return { start: reportCustomStart, end: reportCustomEnd }
+    }
+    return null // 'all'
+  }
+
+  type ReportStudent = { id: string; name: string; lessons: { title: string; date: string; status: 'needs-help' | 'almost' }[] }
+  type ReportClass = { classId: string; className: string; needsSupport: ReportStudent[]; checkIn: ReportStudent[] }
+
+  const reportData: ReportClass[] = useMemo(() => {
+    const bounds = reportDateBounds()
+    const targetClasses = reportClassId === 'all' ? classes : classes.filter(c => c.id === reportClassId)
+
+    return targetClasses.map(cls => {
+      const students = studentsByClass[cls.id] ?? []
+      const classRows = historyData.filter(r => {
+        if (r.class_id !== cls.id) return false
+        if (r.status === 'got-it') return false
+        if (bounds && (r.date < bounds.start || r.date > bounds.end)) return false
+        return true
+      })
+
+      const studentMap = new Map<string, ReportStudent>()
+      for (const row of classRows) {
+        if (!studentMap.has(row.student_id)) {
+          const s = students.find(s => s.id === row.student_id)
+          if (!s) continue
+          studentMap.set(row.student_id, { id: row.student_id, name: row.student_name, lessons: [] })
+        }
+        studentMap.get(row.student_id)!.lessons.push({ title: row.lesson_title, date: row.date, status: row.status as 'needs-help' | 'almost' })
+      }
+
+      const all = [...studentMap.values()].map(s => ({
+        ...s,
+        lessons: s.lessons.sort((a, b) => b.date.localeCompare(a.date)),
+      }))
+
+      const needsSupport = all.filter(s => s.lessons.some(l => l.status === 'needs-help')).sort((a, b) => a.name.localeCompare(b.name))
+      const checkIn = all.filter(s => !s.lessons.some(l => l.status === 'needs-help')).sort((a, b) => a.name.localeCompare(b.name))
+
+      return { classId: cls.id, className: cls.name, needsSupport, checkIn }
+    }).filter(c => c.needsSupport.length > 0 || c.checkIn.length > 0)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [historyData, classes, studentsByClass, reportClassId, reportRange, reportCustomStart, reportCustomEnd, today])
+
+  function buildReportText(): string {
+    const bounds = reportDateBounds()
+    const rangeLabel = reportRange === 'today' ? `Today (${formatDate(today)})`
+      : reportRange === 'week' ? `This week (${formatWeek(weekStart)})`
+      : reportRange === 'month' ? `This month`
+      : reportRange === 'custom' && bounds ? `${formatDate(bounds.start)} – ${formatDate(bounds.end)}`
+      : 'All time'
+
+    const lines: string[] = [`Student Support Report — ${rangeLabel}`, '']
+    for (const cls of reportData) {
+      lines.push(`── ${cls.className} ──`)
+      if (cls.needsSupport.length > 0) {
+        lines.push('Needs Support:')
+        for (const s of cls.needsSupport) {
+          const topics = [...new Set(s.lessons.filter(l => l.status === 'needs-help').map(l => l.title))].join(', ')
+          lines.push(`  • ${s.name} — ${topics}`)
+        }
+      }
+      if (cls.checkIn.length > 0) {
+        lines.push('Worth a Check-In:')
+        for (const s of cls.checkIn) {
+          const topics = [...new Set(s.lessons.map(l => l.title))].join(', ')
+          lines.push(`  • ${s.name} — ${topics}`)
+        }
+      }
+      lines.push('')
+    }
+    return lines.join('\n').trim()
+  }
+
+  async function copyReport() {
+    await navigator.clipboard.writeText(buildReportText())
+    setReportCopied(true)
+    setTimeout(() => setReportCopied(false), 2500)
+  }
+
   // Name format
   const [nameFormat, setNameFormat] = useState<NameFormat>(() =>
     (localStorage.getItem('nameFormat') as NameFormat) ?? 'first'
@@ -366,7 +464,7 @@ export default function App({ userId, isDemo = false, onSignOut }: Props) {
   // ── Load history when switching to history screen ────────────────────────
 
   useEffect(() => {
-    if (screen !== 'history') return
+    if (screen !== 'history' && screen !== 'reports') return
     if (isDemo) {
       setTimeout(() => setHistoryData(buildDemoHistory()), 0)
       return
@@ -792,6 +890,13 @@ export default function App({ userId, isDemo = false, onSignOut }: Props) {
                 {screen === 'roster' ? 'Done' : 'Roster'}
               </button>
             )}
+            <button
+              type="button"
+              onClick={() => setScreen(screen === 'reports' ? 'tracker' : 'reports')}
+              className={`text-sm font-semibold ${screen === 'reports' ? 'text-teal-600' : 'text-slate-400 hover:text-slate-600'}`}
+            >
+              {screen === 'reports' ? 'Done' : 'Reports'}
+            </button>
             {(screen === 'plan') && (
               <button type="button" onClick={() => setScreen('tracker')} className="text-sm font-semibold text-slate-400 hover:text-slate-600">Done</button>
             )}
@@ -1231,6 +1336,108 @@ export default function App({ userId, isDemo = false, onSignOut }: Props) {
               )
             )}
           </div>
+        </main>
+      )}
+
+      {/* ── REPORTS SCREEN ── */}
+      {screen === 'reports' && (
+        <main className="flex-1 px-4 py-5 max-w-lg mx-auto w-full">
+          <h2 className="text-base font-bold text-slate-800 mb-4">Student Support Report</h2>
+
+          {/* Filters */}
+          <div className="bg-white rounded-2xl shadow-sm px-4 py-4 mb-4 flex flex-col gap-3">
+            <div>
+              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1.5">Class</p>
+              <div className="flex flex-wrap gap-1.5">
+                <button type="button" onClick={() => setReportClassId('all')} className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors ${reportClassId === 'all' ? 'bg-teal-500 text-white' : 'bg-slate-100 text-slate-500 hover:text-slate-700'}`}>All classes</button>
+                {classes.map(cls => (
+                  <button key={cls.id} type="button" onClick={() => setReportClassId(cls.id)} className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors ${reportClassId === cls.id ? 'bg-teal-500 text-white' : 'bg-slate-100 text-slate-500 hover:text-slate-700'}`}>{cls.name}</button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1.5">Time period</p>
+              <div className="flex flex-wrap gap-1.5">
+                {([['today', 'Today'], ['week', 'This week'], ['month', 'This month'], ['custom', 'Custom range'], ['all', 'All time']] as [ReportRange, string][]).map(([val, label]) => (
+                  <button key={val} type="button" onClick={() => setReportRange(val)} className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors ${reportRange === val ? 'bg-teal-500 text-white' : 'bg-slate-100 text-slate-500 hover:text-slate-700'}`}>{label}</button>
+                ))}
+              </div>
+              {reportRange === 'custom' && (
+                <div className="flex gap-2 mt-2">
+                  <div className="flex-1">
+                    <p className="text-xs text-slate-400 mb-0.5">From</p>
+                    <input type="date" value={reportCustomStart} onChange={e => setReportCustomStart(e.target.value)} className="w-full text-sm bg-slate-50 rounded-xl px-3 py-2 outline-none border border-slate-100 focus:border-teal-300" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-xs text-slate-400 mb-0.5">To</p>
+                    <input type="date" value={reportCustomEnd} onChange={e => setReportCustomEnd(e.target.value)} className="w-full text-sm bg-slate-50 rounded-xl px-3 py-2 outline-none border border-slate-100 focus:border-teal-300" />
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Results */}
+          {reportData.length === 0 ? (
+            <div className="text-center py-12">
+              <p className="text-slate-400 text-sm">No students flagged for this period.</p>
+              <p className="text-slate-300 text-xs mt-1">Everyone got it, or no data yet.</p>
+            </div>
+          ) : (
+            <>
+              <div className="flex flex-col gap-4 mb-5">
+                {reportData.map(cls => (
+                  <div key={cls.classId} className="bg-white rounded-2xl shadow-sm px-4 py-4">
+                    <p className="text-sm font-bold text-slate-800 mb-3">{cls.className}</p>
+
+                    {cls.needsSupport.length > 0 && (
+                      <div className="mb-3">
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className="w-2 h-2 rounded-full bg-red-400 shrink-0" />
+                          <p className="text-xs font-bold text-red-600 uppercase tracking-wide">Needs Support</p>
+                        </div>
+                        <div className="flex flex-col gap-2">
+                          {cls.needsSupport.map(s => {
+                            const topics = [...new Set(s.lessons.filter(l => l.status === 'needs-help').map(l => l.title))]
+                            return (
+                              <div key={s.id} className="pl-4">
+                                <p className="text-sm font-semibold text-slate-700">{s.name}</p>
+                                <p className="text-xs text-slate-400 mt-0.5">{topics.join(' · ')}</p>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                    {cls.checkIn.length > 0 && (
+                      <div>
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className="w-2 h-2 rounded-full bg-yellow-400 shrink-0" />
+                          <p className="text-xs font-bold text-yellow-600 uppercase tracking-wide">Worth a Check-In</p>
+                        </div>
+                        <div className="flex flex-col gap-2">
+                          {cls.checkIn.map(s => {
+                            const topics = [...new Set(s.lessons.map(l => l.title))]
+                            return (
+                              <div key={s.id} className="pl-4">
+                                <p className="text-sm font-semibold text-slate-700">{s.name}</p>
+                                <p className="text-xs text-slate-400 mt-0.5">{topics.join(' · ')}</p>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              <button type="button" onClick={copyReport} className="w-full py-3 bg-teal-500 text-white text-sm font-semibold rounded-2xl active:scale-95 transition-transform">
+                {reportCopied ? '✓ Copied to clipboard' : 'Copy report'}
+              </button>
+            </>
+          )}
         </main>
       )}
 
