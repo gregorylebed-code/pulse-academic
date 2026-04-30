@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from './lib/supabase'
-import { parseLessonPlan, suggestExitTickets } from './lib/groq'
+import { parseLessonPlan, suggestExitTickets, type DayLesson } from './lib/groq'
 
 type ClassName = 'AM' | 'PM'
 type Status = 'got-it' | 'almost' | 'needs-help'
@@ -133,7 +133,8 @@ function App() {
   const [planText, setPlanText] = useState('')
   const [planLoading, setPlanLoading] = useState(false)
   const [planError, setPlanError] = useState('')
-  const [savedPlan, setSavedPlan] = useState<{ weekStart: string; schedule: Record<string, string> } | null>(null)
+  const [savedPlan, setSavedPlan] = useState<{ weekStart: string; schedule: Record<string, DayLesson> } | null>(null)
+  const [expandedDay, setExpandedDay] = useState<string | null>(null)
   const [planSaved, setPlanSaved] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -155,11 +156,11 @@ function App() {
       .select('week_start, schedule')
       .eq('week_start', weekStart)
       .maybeSingle()
-      .then(({ data }: { data: { week_start: string; schedule: Record<string, string> } | null }) => {
+      .then(({ data }: { data: { week_start: string; schedule: Record<string, DayLesson> } | null }) => {
         if (data) {
           setSavedPlan({ weekStart: data.week_start, schedule: data.schedule })
           const todayLesson = data.schedule[today]
-          if (todayLesson) setLessonInput(todayLesson)
+          if (todayLesson) setLessonInput(todayLesson.title)
         }
       })
 
@@ -224,7 +225,7 @@ function App() {
       .select('week_start, schedule')
       .eq('week_start', weekStart)
       .maybeSingle()
-      .then(({ data }: { data: { week_start: string; schedule: Record<string, string> } | null }) => {
+      .then(({ data }: { data: { week_start: string; schedule: Record<string, DayLesson> } | null }) => {
         if (data) setSavedPlan({ weekStart: data.week_start, schedule: data.schedule })
       })
   }, [screen, weekStart])
@@ -260,7 +261,8 @@ function App() {
     setShowExitTickets(true)
     setActiveExitTicket(null)
     try {
-      const tickets = await suggestExitTickets(activeLesson)
+      const todayPlan = savedPlan?.schedule[today]
+      const tickets = await suggestExitTickets(todayPlan ?? activeLesson)
       setExitTickets(tickets)
     } catch {
       setExitTickets(['Could not load suggestions. Check your API key.'])
@@ -296,7 +298,7 @@ function App() {
       setPlanText('')
       setPlanSaved(true)
       const todayLesson = schedule[today]
-      if (todayLesson) setLessonInput(todayLesson)
+      if (todayLesson) setLessonInput(todayLesson.title)
       setTimeout(() => setPlanSaved(false), 3000)
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err)
@@ -408,10 +410,44 @@ function App() {
               {DAYS.map((dayName, i) => {
                 const dateISO = getDateForDayOffset(i)
                 const lesson = savedPlan.schedule[dateISO]
+                const isToday = dateISO === today
+                const isExpanded = expandedDay === dateISO
                 return (
-                  <div key={dayName} className={`flex items-start gap-3 py-2 border-b border-slate-50 last:border-0 ${dateISO === today ? 'bg-teal-50 -mx-4 px-4 rounded-xl' : ''}`}>
-                    <span className={`text-xs font-semibold w-10 shrink-0 mt-0.5 ${dateISO === today ? 'text-teal-600' : 'text-slate-400'}`}>{dayName.slice(0, 3)}</span>
-                    <span className="text-sm text-slate-700">{lesson ?? <span className="text-slate-300 italic">—</span>}</span>
+                  <div key={dayName} className={`border-b border-slate-50 last:border-0 ${isToday ? 'bg-teal-50 -mx-4 px-4' : ''}`}>
+                    <button
+                      type="button"
+                      onClick={() => lesson && setExpandedDay(isExpanded ? null : dateISO)}
+                      className="flex items-start gap-3 py-2.5 w-full text-left"
+                    >
+                      <span className={`text-xs font-semibold w-10 shrink-0 mt-0.5 ${isToday ? 'text-teal-600' : 'text-slate-400'}`}>{dayName.slice(0, 3)}</span>
+                      <div className="flex-1 min-w-0">
+                        {lesson ? (
+                          <>
+                            <span className="text-sm font-semibold text-slate-700">{lesson.title}</span>
+                            <span className="text-xs text-slate-400 ml-2">{lesson.subject}</span>
+                          </>
+                        ) : (
+                          <span className="text-slate-300 italic text-sm">—</span>
+                        )}
+                      </div>
+                      {lesson && <span className="text-slate-300 text-xs mt-0.5">{isExpanded ? '▲' : '▼'}</span>}
+                    </button>
+                    {isExpanded && lesson && (
+                      <div className="pb-3 pl-13 flex flex-col gap-2" style={{ paddingLeft: '3.25rem' }}>
+                        <div>
+                          <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-0.5">Objective</p>
+                          <p className="text-sm text-slate-700">{lesson.objective}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-0.5">Activities</p>
+                          <p className="text-sm text-slate-700">{lesson.activities}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-0.5">Assessment</p>
+                          <p className="text-sm text-slate-700">{lesson.assessment}</p>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )
               })}
