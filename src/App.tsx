@@ -1,11 +1,24 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from './lib/supabase'
 import { parseLessonPlan, suggestExitTickets, type DayLesson, type WeekSchedule } from './lib/groq'
+import {
+  DEMO_CLASSES, DEMO_STUDENTS, DEMO_STUDENT_CLASSES, DEMO_LESSONS, DEMO_CHECKINS,
+  type DemoClass, type DemoStudent,
+} from './lib/demo'
 
-type ClassName = 'AM' | 'PM'
+// ── Types ──────────────────────────────────────────────────────────────────
+
 type Status = 'got-it' | 'almost' | 'needs-help'
 type Screen = 'tracker' | 'history' | 'plan'
 type HistoryTab = 'student' | 'lesson'
+type NameFormat = 'full' | 'first' | 'initials'
+
+type AppClass = { id: string; name: string; subject: string; display_order: number }
+type AppStudent = { id: string; name: string }
+type AppLesson = { id: string; class_id: string; date: string; title: string; objective?: string }
+type HistoryRow = { class_id: string; class_name: string; student_id: string; student_name: string; lesson_id: string; lesson_title: string; date: string; status: string }
+
+// ── Constants ─────────────────────────────────────────────────────────────
 
 const STATUS_CYCLE: Status[] = ['got-it', 'almost', 'needs-help']
 
@@ -39,24 +52,7 @@ const STATUS_PILL: Record<Status, string> = {
   'needs-help': 'bg-red-100 text-red-600',
 }
 
-const classes: Record<ClassName, string[]> = {
-  'AM': [
-    'Rian B.', 'Ryleigh C.', 'Luciano D.', 'Carter H.', 'Jaron K.',
-    'Gemma K.', 'Sammie L.', 'Charlotte M.', 'Graci P.', 'Sloan R.',
-    'Grayson R.', 'Julianna S.', 'Lily S.', 'Ava T.', 'Eloise T.', 'Alexa W.',
-  ],
-  'PM': [
-    'Ire A.', 'Olivia A.', 'Carter A.', 'Ella C.', 'Legacy C.', 'Jovie D.',
-    'Logan D.', 'Charles F.', 'Olivia G.', 'Grayson G.', 'Isabella G.',
-    'AdaBella H.', 'Trey H.', 'Ezra K.', 'Giada L.', 'Luca L.', 'Riley M.',
-    'Julia N.', 'Michael R.', 'Reagan S.', 'William S.', 'Chase S.', 'Emmett V.', 'Chase W.',
-  ],
-}
-
-const allStudents = [
-  ...classes.AM.map(s => ({ name: s, class: 'AM' as ClassName })),
-  ...classes.PM.map(s => ({ name: s, class: 'PM' as ClassName })),
-]
+// ── Helpers ───────────────────────────────────────────────────────────────
 
 function todayISO() {
   const d = new Date()
@@ -72,32 +68,20 @@ function getWeekStart(iso: string) {
   return `${mon.getFullYear()}-${String(mon.getMonth() + 1).padStart(2, '0')}-${String(mon.getDate()).padStart(2, '0')}`
 }
 
-type NameFormat = 'full' | 'first' | 'initials'
-
 function formatStudentName(fullName: string, format: NameFormat, classmates: string[]): string {
   const parts = fullName.trim().split(/\s+/)
   const first = parts[0]
   const rest = parts.slice(1)
   const lastInitial = rest.length > 0 ? rest[rest.length - 1][0].toUpperCase() + '.' : ''
-
   if (format === 'full') return fullName
-
-  if (format === 'initials') {
-    const initials = parts.map(p => p[0].toUpperCase()).join('.')
-    return initials + '.'
-  }
-
-  // format === 'first' — show first name, add last initial only if another classmate shares the first name
+  if (format === 'initials') return parts.map(p => p[0].toUpperCase()).join('.') + '.'
   const dupFirst = classmates.filter(n => n.trim().split(/\s+/)[0] === first && n !== fullName)
   if (dupFirst.length === 0 || !lastInitial) return first
-  // Check if disambiguation by last initial is sufficient
   const dupFirstAndLast = dupFirst.filter(n => {
     const p = n.trim().split(/\s+/)
     return p.length > 1 && p[p.length - 1][0].toUpperCase() + '.' === lastInitial
   })
-  if (dupFirstAndLast.length === 0) return `${first} ${lastInitial}`
-  // Same first + last initial — add (2)
-  return `${first} ${lastInitial} (2)`
+  return dupFirstAndLast.length === 0 ? `${first} ${lastInitial}` : `${first} ${lastInitial} (2)`
 }
 
 function formatDate(iso: string) {
@@ -112,11 +96,16 @@ function formatWeek(weekStart: string) {
   return `${start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} – ${end.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`
 }
 
-type HistoryRow = { class: string; student: string; lesson: string; date: string; status: string }
+function nextISOWeekday(iso: string): string {
+  const [y, m, d] = iso.split('-').map(Number)
+  const next = new Date(y, m - 1, d + 1)
+  if (next.getDay() === 6) next.setDate(next.getDate() + 2)
+  if (next.getDay() === 0) next.setDate(next.getDate() + 1)
+  return `${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, '0')}-${String(next.getDate()).padStart(2, '0')}`
+}
 
 async function extractTextFromFile(file: File): Promise<string> {
   const ext = file.name.split('.').pop()?.toLowerCase()
-
   if (ext === 'pdf') {
     const { getDocument, GlobalWorkerOptions } = await import('pdfjs-dist')
     GlobalWorkerOptions.workerSrc = new URL('pdfjs-dist/build/pdf.worker.min.mjs', import.meta.url).toString()
@@ -130,38 +119,76 @@ async function extractTextFromFile(file: File): Promise<string> {
     }
     return text
   }
-
   if (ext === 'docx' || ext === 'doc') {
     const mammoth = await import('mammoth')
     const arrayBuffer = await file.arrayBuffer()
     const result = await mammoth.extractRawText({ arrayBuffer })
     return result.value
   }
-
   return await file.text()
 }
 
-function App() {
-  const classNames = useMemo(() => Object.keys(classes) as ClassName[], [])
+// ── Demo data adapters ────────────────────────────────────────────────────
+
+function buildDemoHistory(): HistoryRow[] {
+  const rows: HistoryRow[] = []
+  const studentMap = Object.fromEntries(DEMO_STUDENTS.map((s: DemoStudent) => [s.id, s.name]))
+  const classMap = Object.fromEntries(DEMO_CLASSES.map((c: DemoClass) => [c.id, c.name]))
+  for (const checkin of DEMO_CHECKINS) {
+    const lesson = DEMO_LESSONS.find(l => l.id === checkin.lesson_id)
+    if (!lesson) continue
+    rows.push({
+      class_id: lesson.class_id,
+      class_name: classMap[lesson.class_id] ?? '',
+      student_id: checkin.student_id,
+      student_name: studentMap[checkin.student_id] ?? '',
+      lesson_id: lesson.id,
+      lesson_title: lesson.title,
+      date: lesson.date,
+      status: checkin.status,
+    })
+  }
+  return rows
+}
+
+// ── Props ─────────────────────────────────────────────────────────────────
+
+type Props = {
+  userId: string
+  isDemo?: boolean
+  onSignOut: () => void
+}
+
+// ── App ───────────────────────────────────────────────────────────────────
+
+export default function App({ userId, isDemo = false, onSignOut }: Props) {
+  const today = todayISO()
+  const weekStart = getWeekStart(today)
+
+  // ── Data ──
+  const [classes, setClasses] = useState<AppClass[]>([])
+  const [studentsByClass, setStudentsByClass] = useState<Record<string, AppStudent[]>>({})
+  const [dataLoading, setDataLoading] = useState(true)
+
+  // ── UI state ──
   const [screen, setScreen] = useState<Screen>('tracker')
-  const [selectedClass, setSelectedClass] = useState<ClassName>('AM')
+  const [selectedClassId, setSelectedClassId] = useState<string>('')
   const [lessonInput, setLessonInput] = useState('')
-  const [activeLesson, setActiveLesson] = useState('')
+  const [activeLesson, setActiveLesson] = useState<AppLesson | null>(null)
   const [studentStatuses, setStudentStatuses] = useState<Record<string, Status>>({})
   const [loading, setLoading] = useState(false)
-  const [todaysLessons, setTodaysLessons] = useState<string[]>([])
 
-  // Exit ticket state
+  // Exit ticket
   const [exitTickets, setExitTickets] = useState<string[]>([])
   const [exitTicketLoading, setExitTicketLoading] = useState(false)
   const [activeExitTicket, setActiveExitTicket] = useState<string | null>(null)
   const [showExitTickets, setShowExitTickets] = useState(false)
 
-  // Lesson plan state
+  // Week plan
   const [planText, setPlanText] = useState('')
   const [planLoading, setPlanLoading] = useState(false)
   const [planError, setPlanError] = useState('')
-  const [savedPlan, setSavedPlan] = useState<{ weekStart: string; schedule: WeekSchedule; trackedSubjects: string[] } | null>(null)
+  const [savedPlan, setSavedPlan] = useState<{ weekStart: string; schedule: WeekSchedule; trackedSubjects: string[]; planId?: string } | null>(null)
   const [expandedDay, setExpandedDay] = useState<string | null>(null)
   const [editingDay, setEditingDay] = useState<string | null>(null)
   const [editSubject, setEditSubject] = useState<string | null>(null)
@@ -172,14 +199,19 @@ function App() {
   const [undoSnapshot, setUndoSnapshot] = useState<WeekSchedule | null>(null)
   const [planSaved, setPlanSaved] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
-  // Subject picker after upload
   const [pendingSchedule, setPendingSchedule] = useState<WeekSchedule | null>(null)
   const [subjectChoices, setSubjectChoices] = useState<string[]>([])
-  // Active subject tab on tracker
   const [activeSubject, setActiveSubject] = useState<string | null>(null)
-  // Editing a past (or future) lesson — overrides today
-  const [editingHistory, setEditingHistory] = useState<{ lesson: string; date: string; className: ClassName } | null>(null)
 
+  // History
+  const [historyTab, setHistoryTab] = useState<HistoryTab>('student')
+  const [historyClassId, setHistoryClassId] = useState<string>('')
+  const [historyData, setHistoryData] = useState<HistoryRow[]>([])
+  const [historyLoading, setHistoryLoading] = useState(false)
+  const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null)
+  const [selectedLesson, setSelectedLesson] = useState<{ lesson_id: string; lesson_title: string; date: string } | null>(null)
+
+  // Name format
   const [nameFormat, setNameFormat] = useState<NameFormat>(() =>
     (localStorage.getItem('nameFormat') as NameFormat) ?? 'first'
   )
@@ -189,188 +221,216 @@ function App() {
     localStorage.setItem('nameFormat', next)
   }
 
-  // History state
-  const [historyTab, setHistoryTab] = useState<HistoryTab>('student')
-  const [historyClass, setHistoryClass] = useState<ClassName>('AM')
-  const [historyData, setHistoryData] = useState<HistoryRow[]>([])
-  const [historyLoading, setHistoryLoading] = useState(false)
-  const [selectedStudent, setSelectedStudent] = useState<string | null>(null)
-  const [selectedLesson, setSelectedLesson] = useState<{ lesson: string; date: string } | null>(null)
+  // ── Load classes + students ──────────────────────────────────────────────
 
-  const today = todayISO()
-  const weekStart = getWeekStart(today)
-
-  // On mount: load this week's lesson plan and restore today's active lesson
   useEffect(() => {
+    if (isDemo) {
+      const demoClasses = DEMO_CLASSES.map(c => ({ ...c }))
+      const byClass: Record<string, AppStudent[]> = {}
+      for (const cls of demoClasses) {
+        const ids = DEMO_STUDENT_CLASSES.filter(sc => sc.class_id === cls.id).map(sc => sc.student_id)
+        byClass[cls.id] = DEMO_STUDENTS.filter(s => ids.includes(s.id))
+      }
+      setTimeout(() => {
+        setClasses(demoClasses)
+        setSelectedClassId(demoClasses[0]?.id ?? '')
+        setHistoryClassId(demoClasses[0]?.id ?? '')
+        setStudentsByClass(byClass)
+        setHistoryData(buildDemoHistory())
+        setDataLoading(false)
+      }, 0)
+      return
+    }
+
+    async function load() {
+      setDataLoading(true)
+      const { data: cls } = await supabase
+        .from('classes')
+        .select('id, name, subject, display_order')
+        .eq('user_id', userId)
+        .order('display_order')
+
+      const loaded = cls ?? []
+      setClasses(loaded)
+      setSelectedClassId(loaded[0]?.id ?? '')
+      setHistoryClassId(loaded[0]?.id ?? '')
+
+      if (loaded.length === 0) { setDataLoading(false); return }
+
+      // Load all students for this teacher via student_classes join
+      const { data: scRows } = await supabase
+        .from('student_classes')
+        .select('class_id, students(id, name)')
+        .in('class_id', loaded.map(c => c.id))
+
+      const byClass: Record<string, AppStudent[]> = {}
+      for (const cls of loaded) byClass[cls.id] = []
+      for (const row of scRows ?? []) {
+        const s = row.students as unknown as AppStudent
+        if (s && byClass[row.class_id]) byClass[row.class_id].push(s)
+      }
+      setStudentsByClass(byClass)
+      setDataLoading(false)
+    }
+    load()
+  }, [userId, isDemo])
+
+  // ── Load week plan on mount ──────────────────────────────────────────────
+
+  useEffect(() => {
+    if (isDemo || classes.length === 0) return
     supabase
-      .from('lesson_plans')
-      .select('week_start, schedule, tracked_subjects')
+      .from('week_plans')
+      .select('id, week_start, plan_json, tracked_subjects')
+      .eq('user_id', userId)
       .eq('week_start', weekStart)
       .maybeSingle()
-      .then(({ data }: { data: { week_start: string; schedule: WeekSchedule; tracked_subjects: string[] } | null }) => {
+      .then(({ data }) => {
         if (data) {
           const tracked = data.tracked_subjects ?? []
-          setSavedPlan({ weekStart: data.week_start, schedule: data.schedule, trackedSubjects: tracked })
+          setSavedPlan({ weekStart: data.week_start, schedule: data.plan_json, trackedSubjects: tracked, planId: data.id })
           if (tracked.length > 0) setActiveSubject(tracked[0])
-          const todayDay = data.schedule[today]
-          const firstSubject = tracked[0]
-          if (todayDay && firstSubject && todayDay[firstSubject]) setLessonInput(todayDay[firstSubject].title)
         }
       })
+  }, [userId, isDemo, weekStart, classes.length])
 
-    setLoading(true)
-    supabase
-      .from('student_statuses')
-      .select('lesson, subject')
-      .eq('date', today)
-      .then(({ data }: { data: { lesson: string; subject: string | null }[] | null }) => {
-        if (!data || data.length === 0) { setLoading(false); return }
-        const lessons = [...new Set(data.map(r => r.lesson))]
-        if (lessons.length === 1) {
-          setActiveLesson(lessons[0])
-          setLessonInput(lessons[0])
-        } else {
-          setTodaysLessons(lessons)
-          setLoading(false)
-        }
-      })
-  }, [today, weekStart])
+  // ── Load history when switching to history screen ────────────────────────
 
-  // Load statuses whenever active lesson changes
-  useEffect(() => {
-    if (!activeLesson) return
-    setLoading(true)
-    supabase
-      .from('student_statuses')
-      .select('class, student, status')
-      .eq('lesson', activeLesson)
-      .eq('date', today)
-      .then(({ data }: { data: { class: string; student: string; status: string }[] | null }) => {
-        const map: Record<string, Status> = {}
-        if (data) {
-          for (const row of data) {
-            map[`${row.class}-${row.student}`] = row.status as Status
-          }
-        }
-        setStudentStatuses(map)
-        setLoading(false)
-      })
-  }, [activeLesson, today])
-
-  // Load history when switching to history screen
   useEffect(() => {
     if (screen !== 'history') return
-    setHistoryLoading(true)
-    supabase
-      .from('student_statuses')
-      .select('class, student, lesson, date, status')
-      .order('date', { ascending: false })
-      .then(({ data }: { data: HistoryRow[] | null }) => {
-        setHistoryData(data ?? [])
-        setHistoryLoading(false)
-      })
-  }, [screen])
+    if (isDemo) {
+      setTimeout(() => setHistoryData(buildDemoHistory()), 0)
+      return
+    }
+    async function loadHistory() {
+      setHistoryLoading(true)
+      const { data } = await supabase
+        .from('checkins')
+        .select(`
+          id, status,
+          lessons(id, title, date, class_id, classes(id, name)),
+          students(id, name)
+        `)
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false })
+      type RawCheckin = { status: string; lessons: { id: string; title: string; date: string; class_id: string; classes: { name: string } } | null; students: { id: string; name: string } | null }
+      const rows: HistoryRow[] = ((data ?? []) as unknown as RawCheckin[]).map(r => ({
+        class_id: r.lessons?.class_id ?? '',
+        class_name: r.lessons?.classes?.name ?? '',
+        student_id: r.students?.id ?? '',
+        student_name: r.students?.name ?? '',
+        lesson_id: r.lessons?.id ?? '',
+        lesson_title: r.lessons?.title ?? '',
+        date: r.lessons?.date ?? '',
+        status: r.status,
+      }))
+      setHistoryData(rows)
+      setHistoryLoading(false)
+    }
+    loadHistory()
+  }, [screen, userId, isDemo])
 
-  // Load plan when navigating to plan screen
+  // ── Load plan when navigating to plan screen ─────────────────────────────
+
   useEffect(() => {
-    if (screen !== 'plan') return
+    if (screen !== 'plan' || isDemo) return
     supabase
-      .from('lesson_plans')
-      .select('week_start, schedule, tracked_subjects')
+      .from('week_plans')
+      .select('id, week_start, plan_json, tracked_subjects')
+      .eq('user_id', userId)
       .eq('week_start', weekStart)
       .maybeSingle()
-      .then(({ data }: { data: { week_start: string; schedule: WeekSchedule; tracked_subjects: string[] } | null }) => {
-        if (data) setSavedPlan({ weekStart: data.week_start, schedule: data.schedule, trackedSubjects: data.tracked_subjects ?? [] })
+      .then(({ data }) => {
+        if (data) setSavedPlan({ weekStart: data.week_start, schedule: data.plan_json, trackedSubjects: data.tracked_subjects ?? [], planId: data.id })
       })
-  }, [screen, weekStart])
+  }, [screen, userId, isDemo, weekStart])
+
+  // ── Lesson actions ────────────────────────────────────────────────────────
+
+  async function startLessonByTitle(title: string, date?: string) {
+    const lessonDate = date ?? today
+    if (isDemo) {
+      const found = DEMO_LESSONS.find(l => l.title === title && l.class_id === selectedClassId && l.date === lessonDate)
+      setActiveLesson(found ?? { id: 'demo-new', class_id: selectedClassId, date: lessonDate, title })
+      // Load demo checkins
+      const map: Record<string, Status> = {}
+      if (found) {
+        for (const c of DEMO_CHECKINS.filter(c => c.lesson_id === found.id)) {
+          map[c.student_id] = c.status
+        }
+      }
+      setStudentStatuses(map)
+      return
+    }
+
+    setLoading(true)
+    // Upsert the lesson row
+    const { data: existing } = await supabase
+      .from('lessons')
+      .select('id')
+      .eq('class_id', selectedClassId)
+      .eq('date', lessonDate)
+      .eq('title', title)
+      .maybeSingle()
+
+    let lessonId: string
+    if (existing) {
+      lessonId = existing.id
+    } else {
+      const { data: inserted } = await supabase
+        .from('lessons')
+        .insert({ user_id: userId, class_id: selectedClassId, date: lessonDate, title })
+        .select('id')
+        .single()
+      lessonId = inserted?.id ?? ''
+    }
+
+    const lesson: AppLesson = { id: lessonId, class_id: selectedClassId, date: lessonDate, title }
+    setActiveLesson(lesson)
+
+    // Load existing checkins
+    const { data: checkins } = await supabase
+      .from('checkins')
+      .select('student_id, status')
+      .eq('lesson_id', lessonId)
+    const map: Record<string, Status> = {}
+    for (const c of checkins ?? []) map[c.student_id] = c.status as Status
+    setStudentStatuses(map)
+    setLoading(false)
+  }
 
   function startLesson() {
-    const lesson = lessonInput.trim()
-    if (!lesson) return
-    setActiveLesson(lesson)
-    setStudentStatuses({})
+    const title = lessonInput.trim()
+    if (!title) return
     setExitTickets([])
     setActiveExitTicket(null)
     setShowExitTickets(false)
+    startLessonByTitle(title)
   }
 
-  function switchSubject(subject: string) {
-    setActiveSubject(subject)
-    setExitTickets([])
-    setActiveExitTicket(null)
-    setShowExitTickets(false)
-    setTodaysLessons([])
-    // Auto-start from plan if available, otherwise clear for manual entry
-    const planTitle = savedPlan?.schedule[today]?.[subject]?.title
-    if (planTitle) {
-      setLessonInput(planTitle)
-      setActiveLesson(planTitle)
-      setStudentStatuses({})
-      // Load any statuses already recorded for this lesson today
-      setLoading(true)
-      supabase
-        .from('student_statuses')
-        .select('class, student, status')
-        .eq('lesson', planTitle)
-        .eq('date', today)
-        .then(({ data }: { data: { class: string; student: string; status: string }[] | null }) => {
-          const map: Record<string, Status> = {}
-          if (data) for (const row of data) map[`${row.class}-${row.student}`] = row.status as Status
-          setStudentStatuses(map)
-          setLoading(false)
-        })
-    } else {
-      setActiveLesson('')
-      setLessonInput('')
-      setStudentStatuses({})
+  function tap(studentId: string) {
+    if (!activeLesson) return
+    if (isDemo) {
+      setStudentStatuses(cur => {
+        const next = STATUS_CYCLE[(STATUS_CYCLE.indexOf(cur[studentId] ?? 'got-it') + 1) % STATUS_CYCLE.length]
+        return { ...cur, [studentId]: next }
+      })
+      return
     }
-  }
-
-  function tap(key: string, className: ClassName, student: string) {
-    const lessonDate = editingHistory?.date ?? today
-    const lessonName = editingHistory?.lesson ?? activeLesson
-    setStudentStatuses(current => {
-      const cur = current[key] ?? 'got-it'
-      const next = STATUS_CYCLE[(STATUS_CYCLE.indexOf(cur) + 1) % STATUS_CYCLE.length]
+    setStudentStatuses(cur => {
+      const next = STATUS_CYCLE[(STATUS_CYCLE.indexOf(cur[studentId] ?? 'got-it') + 1) % STATUS_CYCLE.length]
       supabase
-        .from('student_statuses')
+        .from('checkins')
         .upsert(
-          { class: className, student, lesson: lessonName, date: lessonDate, status: next, subject: activeSubject },
-          { onConflict: 'class,student,lesson,date' }
+          { user_id: userId, lesson_id: activeLesson.id, student_id: studentId, status: next },
+          { onConflict: 'lesson_id,student_id' }
         )
         .then()
-      return { ...current, [key]: next }
+      return { ...cur, [studentId]: next }
     })
   }
 
-  function openHistoryEdit(lesson: string, date: string, className: ClassName) {
-    setEditingHistory({ lesson, date, className })
-    setSelectedClass(className)
-    setScreen('tracker')
-    setActiveLesson(lesson)
-    setLessonInput(lesson)
-    setStudentStatuses({})
-    setLoading(true)
-    supabase
-      .from('student_statuses')
-      .select('class, student, status')
-      .eq('lesson', lesson)
-      .eq('date', date)
-      .then(({ data }: { data: { class: string; student: string; status: string }[] | null }) => {
-        const map: Record<string, Status> = {}
-        if (data) for (const row of data) map[`${row.class}-${row.student}`] = row.status as Status
-        setStudentStatuses(map)
-        setLoading(false)
-      })
-  }
-
-  function closeHistoryEdit() {
-    setEditingHistory(null)
-    setActiveLesson('')
-    setLessonInput('')
-    setStudentStatuses({})
-    setScreen('history')
-  }
+  // ── Exit tickets ──────────────────────────────────────────────────────────
 
   async function handleSuggestExitTicket() {
     if (!activeLesson) return
@@ -379,7 +439,7 @@ function App() {
     setActiveExitTicket(null)
     try {
       const todayPlan = activeSubject ? savedPlan?.schedule[today]?.[activeSubject] : undefined
-      const tickets = await suggestExitTickets(todayPlan ?? activeLesson)
+      const tickets = await suggestExitTickets(todayPlan ?? activeLesson.title)
       setExitTickets(tickets)
     } catch {
       setExitTickets(['Could not load suggestions. Check your API key.'])
@@ -388,13 +448,14 @@ function App() {
     }
   }
 
+  // ── Week plan ─────────────────────────────────────────────────────────────
+
   async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
     setPlanError('')
     try {
-      const text = await extractTextFromFile(file)
-      setPlanText(text)
+      setPlanText(await extractTextFromFile(file))
     } catch {
       setPlanError('Could not read file. Try copy/pasting the text instead.')
     }
@@ -402,47 +463,39 @@ function App() {
   }
 
   async function handleSavePlan() {
-    if (!planText.trim()) return
+    if (!planText.trim() || isDemo) return
     setPlanLoading(true)
     setPlanError('')
     setPlanSaved(false)
     try {
       const schedule = await parseLessonPlan(planText, weekStart)
-      // Collect all unique subjects found across the week
       const found = new Set<string>()
-      for (const day of Object.values(schedule)) {
-        for (const subject of Object.keys(day)) found.add(subject)
-      }
-      const allSubjects = [...found].sort()
+      for (const day of Object.values(schedule)) for (const subj of Object.keys(day)) found.add(subj)
       setPendingSchedule(schedule)
-      // Pre-select all subjects so teacher just unchecks what they don't want
-      setSubjectChoices(allSubjects)
+      setSubjectChoices([...found].sort())
       setPlanText('')
     } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err)
-      setPlanError(`Error: ${msg}`)
-      console.error(err)
+      setPlanError(`Error: ${err instanceof Error ? err.message : String(err)}`)
     } finally {
       setPlanLoading(false)
     }
   }
 
   async function confirmSubjects() {
-    if (!pendingSchedule || subjectChoices.length === 0) return
+    if (!pendingSchedule || subjectChoices.length === 0 || isDemo) return
     setPlanSaving(true)
-    // Filter schedule to only tracked subjects
     const filtered: WeekSchedule = {}
     for (const [date, day] of Object.entries(pendingSchedule)) {
       const kept: Record<string, DayLesson> = {}
-      for (const subj of subjectChoices) {
-        if (day[subj]) kept[subj] = day[subj]
-      }
+      for (const subj of subjectChoices) if (day[subj]) kept[subj] = day[subj]
       if (Object.keys(kept).length > 0) filtered[date] = kept
     }
-    await supabase
-      .from('lesson_plans')
-      .upsert({ week_start: weekStart, schedule: filtered, tracked_subjects: subjectChoices }, { onConflict: 'week_start' })
-    setSavedPlan({ weekStart, schedule: filtered, trackedSubjects: subjectChoices })
+    const { data } = await supabase
+      .from('week_plans')
+      .upsert({ user_id: userId, week_start: weekStart, plan_json: filtered, tracked_subjects: subjectChoices }, { onConflict: 'user_id,week_start' })
+      .select('id')
+      .single()
+    setSavedPlan({ weekStart, schedule: filtered, trackedSubjects: subjectChoices, planId: data?.id })
     setActiveSubject(subjectChoices[0])
     const todayDay = filtered[today]
     if (todayDay?.[subjectChoices[0]]) setLessonInput(todayDay[subjectChoices[0]].title)
@@ -453,13 +506,13 @@ function App() {
   }
 
   async function persistSchedule(schedule: WeekSchedule, snapshot?: WeekSchedule) {
-    if (!savedPlan) return
+    if (!savedPlan || isDemo) return
     if (snapshot !== undefined) setUndoSnapshot(snapshot)
     setPlanSaving(true)
     await supabase
-      .from('lesson_plans')
-      .upsert({ week_start: weekStart, schedule, tracked_subjects: savedPlan.trackedSubjects }, { onConflict: 'week_start' })
-    setSavedPlan({ weekStart, schedule, trackedSubjects: savedPlan.trackedSubjects })
+      .from('week_plans')
+      .upsert({ user_id: userId, week_start: weekStart, plan_json: schedule, tracked_subjects: savedPlan.trackedSubjects }, { onConflict: 'user_id,week_start' })
+    setSavedPlan({ ...savedPlan, schedule })
     const todayDay = schedule[today]
     const subj = activeSubject ?? savedPlan.trackedSubjects[0]
     if (todayDay?.[subj]) setLessonInput(todayDay[subj].title)
@@ -494,9 +547,7 @@ function App() {
         if (Object.keys(schedule[editingDay]).length === 0) delete schedule[editingDay]
       }
     }
-    setEditingDay(null)
-    setEditSubject(null)
-    setEditDraft(null)
+    setEditingDay(null); setEditSubject(null); setEditDraft(null)
     await persistSchedule(schedule, snapshot)
   }
 
@@ -514,18 +565,12 @@ function App() {
         .sort()
       const shifted: WeekSchedule = {}
       for (const k of datesToShift) {
-        const [ky, km, kd] = k.split('-').map(Number)
-        const next = new Date(ky, km - 1, kd + 1)
-        if (next.getDay() === 6) next.setDate(next.getDate() + 2)
-        if (next.getDay() === 0) next.setDate(next.getDate() + 1)
-        const nextISO = `${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, '0')}-${String(next.getDate()).padStart(2, '0')}`
-        shifted[nextISO] = schedule[k]
+        shifted[nextISOWeekday(k)] = schedule[k]
       }
       for (const k of datesToShift) delete schedule[k]
       Object.assign(schedule, shifted)
     }
-    setExpandedDay(null)
-    setSkipConfirmDay(null)
+    setExpandedDay(null); setSkipConfirmDay(null)
     await persistSchedule(schedule, snapshot)
   }
 
@@ -535,8 +580,7 @@ function App() {
     if (swapSource === dateISO) { setSwapSource(null); return }
     const snapshot: WeekSchedule = JSON.parse(JSON.stringify(savedPlan.schedule))
     const schedule: WeekSchedule = JSON.parse(JSON.stringify(savedPlan.schedule))
-    const a = schedule[swapSource]
-    const b = schedule[dateISO]
+    const a = schedule[swapSource]; const b = schedule[dateISO]
     if (a) schedule[dateISO] = a; else delete schedule[dateISO]
     if (b) schedule[swapSource] = b; else delete schedule[swapSource]
     setSwapSource(null)
@@ -547,11 +591,7 @@ function App() {
     if (!savedPlan) return
     const day = savedPlan.schedule[dateISO]
     if (!day) return
-    const [y, m, d] = dateISO.split('-').map(Number)
-    const next = new Date(y, m - 1, d + 1)
-    if (next.getDay() === 6) next.setDate(next.getDate() + 2)
-    if (next.getDay() === 0) next.setDate(next.getDate() + 1)
-    const nextISO = `${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, '0')}-${String(next.getDate()).padStart(2, '0')}`
+    const nextISO = nextISOWeekday(dateISO)
     const snapshot: WeekSchedule = JSON.parse(JSON.stringify(savedPlan.schedule))
     const schedule: WeekSchedule = JSON.parse(JSON.stringify(savedPlan.schedule))
     schedule[nextISO] = JSON.parse(JSON.stringify(day))
@@ -559,27 +599,44 @@ function App() {
     await persistSchedule(schedule, snapshot)
   }
 
-  const students = classes[selectedClass]
-  const filteredHistoryData = historyData.filter(r => r.class === historyClass)
-  const studentHistory = selectedStudent
-    ? historyData.filter(r => r.student === selectedStudent).sort((a, b) => a.date.localeCompare(b.date))
+  function switchSubject(subject: string) {
+    setActiveSubject(subject)
+    setExitTickets([]); setActiveExitTicket(null); setShowExitTickets(false)
+    const planTitle = savedPlan?.schedule[today]?.[subject]?.title
+    if (planTitle) {
+      setLessonInput(planTitle)
+      startLessonByTitle(planTitle)
+    } else {
+      setActiveLesson(null); setLessonInput(''); setStudentStatuses({})
+    }
+  }
+
+  // ── Derived data ──────────────────────────────────────────────────────────
+
+  const currentStudents = studentsByClass[selectedClassId] ?? []
+  const historyStudents = studentsByClass[historyClassId] ?? []
+
+  const filteredHistory = historyData.filter(r => r.class_id === historyClassId)
+
+  const studentHistoryRows = selectedStudentId
+    ? historyData.filter(r => r.student_id === selectedStudentId).sort((a, b) => a.date.localeCompare(b.date))
     : []
 
   const lessonGroups = useMemo(() => {
     const map = new Map<string, HistoryRow[]>()
-    for (const row of filteredHistoryData) {
-      const key = `${row.date}||${row.lesson}`
+    for (const row of filteredHistory) {
+      const key = `${row.date}||${row.lesson_id}`
       if (!map.has(key)) map.set(key, [])
       map.get(key)!.push(row)
     }
     return [...map.entries()].map(([key, rows]) => {
-      const [date, lesson] = key.split('||')
-      return { date, lesson, rows }
+      const [date] = key.split('||')
+      return { date, lesson_id: rows[0].lesson_id, lesson_title: rows[0].lesson_title, rows }
     }).sort((a, b) => b.date.localeCompare(a.date))
-  }, [filteredHistoryData])
+  }, [filteredHistory])
 
   const lessonDetail = selectedLesson
-    ? historyData.filter(r => r.lesson === selectedLesson.lesson && r.date === selectedLesson.date)
+    ? historyData.filter(r => r.lesson_id === selectedLesson.lesson_id)
     : []
 
   const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday']
@@ -590,29 +647,40 @@ function App() {
     return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`
   }
 
+  // ── Render ────────────────────────────────────────────────────────────────
+
+  if (dataLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center" style={{ background: '#f5f0e8' }}>
+        <p className="text-slate-400 text-sm">Loading…</p>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen flex flex-col" style={{ background: '#f5f0e8' }}>
       {/* Header */}
       <header className="bg-white px-5 py-4 flex items-center justify-between shadow-sm">
         <div>
-          <h1 className="text-xl font-bold text-slate-800 leading-none">Pulse</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-xl font-bold text-slate-800 leading-none">Pulse</h1>
+            {isDemo && <span className="text-xs font-semibold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">Demo</span>}
+          </div>
           <p className="text-xs text-slate-400 mt-0.5">Academic Tracker</p>
         </div>
         <div className="flex items-center gap-3">
-          {screen === 'tracker' && (
+          {screen === 'tracker' && classes.length > 1 && (
             <div className="flex gap-1 bg-slate-100 rounded-xl p-1">
-              {classNames.map(cn => (
+              {classes.map(cls => (
                 <button
-                  key={cn}
+                  key={cls.id}
                   type="button"
-                  onClick={() => setSelectedClass(cn)}
-                  className={`px-5 py-1.5 rounded-lg text-sm font-semibold transition-all ${
-                    selectedClass === cn
-                      ? 'bg-teal-500 text-white shadow-sm'
-                      : 'text-slate-500 hover:text-slate-700'
+                  onClick={() => { setSelectedClassId(cls.id); setActiveLesson(null); setStudentStatuses({}) }}
+                  className={`px-4 py-1.5 rounded-lg text-sm font-semibold transition-all ${
+                    selectedClassId === cls.id ? 'bg-teal-500 text-white shadow-sm' : 'text-slate-500 hover:text-slate-700'
                   }`}
                 >
-                  {cn}
+                  {cls.name}
                 </button>
               ))}
             </div>
@@ -626,18 +694,20 @@ function App() {
             >
               {nameFormat === 'full' ? 'Full' : nameFormat === 'first' ? 'First' : 'Init'}
             </button>
-            <button
-              type="button"
-              onClick={() => { setScreen('plan'); setSelectedStudent(null); setSelectedLesson(null) }}
-              className={`text-sm font-semibold ${screen === 'plan' ? 'text-teal-600' : 'text-slate-400 hover:text-slate-600'}`}
-            >
-              Week Plan
-            </button>
+            {!isDemo && (
+              <button
+                type="button"
+                onClick={() => { setScreen('plan'); setSelectedStudentId(null); setSelectedLesson(null) }}
+                className={`text-sm font-semibold ${screen === 'plan' ? 'text-teal-600' : 'text-slate-400 hover:text-slate-600'}`}
+              >
+                Week Plan
+              </button>
+            )}
             <button
               type="button"
               onClick={() => {
                 setScreen(screen === 'history' ? 'tracker' : 'history')
-                setSelectedStudent(null)
+                setSelectedStudentId(null)
                 setSelectedLesson(null)
               }}
               className={`text-sm font-semibold ${screen === 'history' ? 'text-teal-600' : 'text-slate-400 hover:text-slate-600'}`}
@@ -645,19 +715,20 @@ function App() {
               {screen === 'history' ? 'Done' : 'History'}
             </button>
             {screen === 'plan' && (
-              <button
-                type="button"
-                onClick={() => setScreen('tracker')}
-                className="text-sm font-semibold text-slate-400 hover:text-slate-600"
-              >
-                Done
-              </button>
+              <button type="button" onClick={() => setScreen('tracker')} className="text-sm font-semibold text-slate-400 hover:text-slate-600">Done</button>
             )}
+            <button
+              type="button"
+              onClick={onSignOut}
+              className="text-xs text-slate-300 hover:text-slate-500"
+            >
+              {isDemo ? 'Exit' : 'Sign out'}
+            </button>
           </div>
         </div>
       </header>
 
-      {/* Subject tabs — shown on tracker screen when plan has multiple subjects */}
+      {/* Subject tabs */}
       {screen === 'tracker' && savedPlan && savedPlan.trackedSubjects.length > 1 && (
         <div className="bg-white border-b border-slate-100 px-4 flex gap-0">
           {savedPlan.trackedSubjects.map(subj => (
@@ -675,12 +746,12 @@ function App() {
         </div>
       )}
 
+      {/* ── PLAN SCREEN ── */}
       {screen === 'plan' ? (
         <main className="flex-1 px-4 py-5 max-w-lg mx-auto w-full">
           <h2 className="text-base font-bold text-slate-800 mb-1">Weekly Lesson Plan</h2>
           <p className="text-xs text-slate-400 mb-4">{formatWeek(weekStart)}</p>
 
-          {/* Subject picker — shown after AI parses the plan */}
           {pendingSchedule && (
             <div className="bg-white rounded-2xl shadow-sm px-4 py-4 mb-4">
               <p className="text-sm font-semibold text-slate-700 mb-1">Which subjects do you want to track?</p>
@@ -703,21 +774,10 @@ function App() {
                 })()}
               </div>
               <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={confirmSubjects}
-                  disabled={subjectChoices.length === 0 || planSaving}
-                  className="flex-1 py-2.5 bg-teal-500 text-white text-sm font-semibold rounded-2xl disabled:opacity-40"
-                >
+                <button type="button" onClick={confirmSubjects} disabled={subjectChoices.length === 0 || planSaving} className="flex-1 py-2.5 bg-teal-500 text-white text-sm font-semibold rounded-2xl disabled:opacity-40">
                   {planSaving ? 'Saving…' : `Save with ${subjectChoices.length} subject${subjectChoices.length !== 1 ? 's' : ''}`}
                 </button>
-                <button
-                  type="button"
-                  onClick={() => { setPendingSchedule(null); setSubjectChoices([]) }}
-                  className="px-4 py-2.5 bg-slate-100 text-slate-500 text-sm font-semibold rounded-2xl"
-                >
-                  Cancel
-                </button>
+                <button type="button" onClick={() => { setPendingSchedule(null); setSubjectChoices([]) }} className="px-4 py-2.5 bg-slate-100 text-slate-500 text-sm font-semibold rounded-2xl">Cancel</button>
               </div>
             </div>
           )}
@@ -752,20 +812,10 @@ function App() {
                         {(['title', 'objective', 'activities', 'assessment'] as (keyof DayLesson)[]).filter(f => f !== 'subject').map(field => (
                           <div key={field}>
                             <p className="text-xs text-slate-400 uppercase tracking-wide mb-0.5">{field}</p>
-                            {field === 'objective' || field === 'activities' || field === 'assessment' ? (
-                              <textarea
-                                value={editDraft[field]}
-                                onChange={e => setEditDraft({ ...editDraft, [field]: e.target.value })}
-                                rows={2}
-                                className="w-full text-sm bg-slate-50 rounded-xl px-3 py-2 outline-none border border-slate-100 focus:border-teal-300 resize-none"
-                              />
+                            {field !== 'title' ? (
+                              <textarea value={editDraft[field]} onChange={e => setEditDraft({ ...editDraft, [field]: e.target.value })} rows={2} className="w-full text-sm bg-slate-50 rounded-xl px-3 py-2 outline-none border border-slate-100 focus:border-teal-300 resize-none" />
                             ) : (
-                              <input
-                                type="text"
-                                value={editDraft[field]}
-                                onChange={e => setEditDraft({ ...editDraft, [field]: e.target.value })}
-                                className="w-full text-sm bg-slate-50 rounded-xl px-3 py-2 outline-none border border-slate-100 focus:border-teal-300"
-                              />
+                              <input type="text" value={editDraft[field]} onChange={e => setEditDraft({ ...editDraft, [field]: e.target.value })} className="w-full text-sm bg-slate-50 rounded-xl px-3 py-2 outline-none border border-slate-100 focus:border-teal-300" />
                             )}
                           </div>
                         ))}
@@ -780,14 +830,7 @@ function App() {
 
                 return (
                   <div key={dayName} className={`border-b border-slate-50 last:border-0 ${isToday ? 'bg-teal-50 -mx-4 px-4' : ''} ${isSwapSource ? 'bg-amber-50 -mx-4 px-4' : ''}`}>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (swapSource) { handleSwap(dateISO); return }
-                        setExpandedDay(isExpanded ? null : dateISO)
-                      }}
-                      className="flex items-start gap-3 py-2.5 w-full text-left"
-                    >
+                    <button type="button" onClick={() => { if (swapSource) { handleSwap(dateISO); return } setExpandedDay(isExpanded ? null : dateISO) }} className="flex items-start gap-3 py-2.5 w-full text-left">
                       <span className={`text-xs font-semibold w-10 shrink-0 mt-0.5 ${isToday ? 'text-teal-600' : isSwapSource ? 'text-amber-500' : 'text-slate-400'}`}>{dayName.slice(0, 3)}</span>
                       <div className="flex-1 min-w-0 flex flex-col gap-0.5">
                         {subjects.length > 0 ? subjects.map(subj => (
@@ -795,9 +838,7 @@ function App() {
                             <span className="text-xs font-semibold text-slate-400 w-14 shrink-0">{subj}</span>
                             <span className="text-sm font-semibold text-slate-700 truncate">{dayLessons[subj].title}</span>
                           </div>
-                        )) : (
-                          <span className="text-slate-300 italic text-sm">No lesson</span>
-                        )}
+                        )) : <span className="text-slate-300 italic text-sm">No lesson</span>}
                       </div>
                       {!swapSource && <span className="text-slate-300 text-xs mt-0.5">{isExpanded ? '▲' : '▼'}</span>}
                     </button>
@@ -809,18 +850,12 @@ function App() {
                             <div key={subj}>
                               <p className="text-xs font-bold text-teal-600 mb-1.5">{subj}</p>
                               <div className="flex flex-col gap-1.5">
-                                <div>
-                                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-0.5">Objective</p>
-                                  <p className="text-sm text-slate-700">{lesson.objective}</p>
-                                </div>
-                                <div>
-                                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-0.5">Activities</p>
-                                  <p className="text-sm text-slate-700">{lesson.activities}</p>
-                                </div>
-                                <div>
-                                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-0.5">Assessment</p>
-                                  <p className="text-sm text-slate-700">{lesson.assessment}</p>
-                                </div>
+                                {(['objective', 'activities', 'assessment'] as const).map(f => (
+                                  <div key={f}>
+                                    <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-0.5">{f}</p>
+                                    <p className="text-sm text-slate-700">{lesson[f]}</p>
+                                  </div>
+                                ))}
                               </div>
                               <button type="button" onClick={() => startEdit(dateISO, subj)} className="mt-2 text-xs font-semibold px-3 py-1.5 bg-slate-100 text-slate-600 rounded-xl hover:bg-teal-50 hover:text-teal-700">✏️ Edit {subj}</button>
                             </div>
@@ -846,123 +881,47 @@ function App() {
                   </div>
                 )
               })}
-              <button
-                type="button"
-                onClick={() => { setSavedPlan(null); setExpandedDay(null); setEditingDay(null); setEditSubject(null); setSwapSource(null) }}
-                className="text-xs text-slate-400 hover:text-slate-600 mt-3"
-              >
-                Upload new plan
-              </button>
+              <button type="button" onClick={() => { setSavedPlan(null); setExpandedDay(null); setEditingDay(null); setEditSubject(null); setSwapSource(null) }} className="text-xs text-slate-400 hover:text-slate-600 mt-3">Upload new plan</button>
             </div>
           ) : !pendingSchedule ? (
             <>
               <div className="bg-white rounded-2xl shadow-sm px-4 py-4 mb-4">
                 <p className="text-sm font-semibold text-slate-700 mb-3">Upload or paste your lesson plan</p>
-                <button
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  className="w-full border-2 border-dashed border-slate-200 rounded-xl py-3 text-sm text-slate-500 hover:border-teal-300 hover:text-teal-600 transition-colors mb-3"
-                >
+                <button type="button" onClick={() => fileInputRef.current?.click()} className="w-full border-2 border-dashed border-slate-200 rounded-xl py-3 text-sm text-slate-500 hover:border-teal-300 hover:text-teal-600 transition-colors mb-3">
                   📎 Upload PDF, Word, or text file
                 </button>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept=".pdf,.doc,.docx,.txt"
-                  className="hidden"
-                  onChange={handleFileUpload}
-                />
-                <textarea
-                  value={planText}
-                  onChange={e => setPlanText(e.target.value)}
-                  placeholder={"Or paste your lesson plan here…\n\nMonday: Fractions — Adding Unlike Denominators\nTuesday: Fractions — Subtracting\nWednesday: Decimals intro\n..."}
-                  rows={8}
-                  className="w-full text-sm bg-slate-50 rounded-xl px-4 py-3 outline-none text-slate-700 placeholder-slate-300 resize-none border border-slate-100 focus:border-teal-300"
-                />
+                <input ref={fileInputRef} type="file" accept=".pdf,.doc,.docx,.txt" className="hidden" onChange={handleFileUpload} />
+                <textarea value={planText} onChange={e => setPlanText(e.target.value)} placeholder={"Or paste your lesson plan here…\n\nMonday: Fractions — Adding Unlike Denominators\nTuesday: Fractions — Subtracting\n…"} rows={8} className="w-full text-sm bg-slate-50 rounded-xl px-4 py-3 outline-none text-slate-700 placeholder-slate-300 resize-none border border-slate-100 focus:border-teal-300" />
                 {planError && <p className="text-xs text-red-500 mt-2">{planError}</p>}
               </div>
-
-              <button
-                type="button"
-                onClick={handleSavePlan}
-                disabled={!planText.trim() || planLoading}
-                className="w-full py-3 bg-teal-500 text-white text-sm font-semibold rounded-2xl disabled:opacity-40"
-              >
+              <button type="button" onClick={handleSavePlan} disabled={!planText.trim() || planLoading} className="w-full py-3 bg-teal-500 text-white text-sm font-semibold rounded-2xl disabled:opacity-40">
                 {planLoading ? 'Analyzing with AI…' : "Save this week's plan"}
               </button>
-
-              {planSaved && (
-                <p className="text-xs text-emerald-600 text-center mt-3 font-semibold">✓ Plan saved! Today's lesson was auto-filled.</p>
-              )}
+              {planSaved && <p className="text-xs text-emerald-600 text-center mt-3 font-semibold">✓ Plan saved! Today's lesson was auto-filled.</p>}
             </>
           ) : null}
         </main>
+
       ) : screen === 'tracker' ? (
         <>
-          {/* Editing past lesson banner */}
-          {editingHistory && (
-            <div className="bg-amber-50 border-b border-amber-100 px-4 py-2.5 flex items-center justify-between">
-              <div>
-                <p className="text-xs font-semibold text-amber-700">Editing past lesson</p>
-                <p className="text-xs text-amber-600">{editingHistory.lesson} · {formatDate(editingHistory.date)}</p>
-              </div>
-              <button type="button" onClick={closeHistoryEdit} className="text-xs font-semibold text-amber-700 bg-amber-100 px-3 py-1.5 rounded-xl">Done</button>
-            </div>
-          )}
           {/* Lesson bar */}
           <div className="bg-white border-t border-slate-100 px-4 py-3 flex gap-2 items-center shadow-sm">
-            {editingHistory ? (
-              <div className="flex-1 min-w-0">
-                <p className="text-xs text-slate-400 leading-none mb-0.5">Editing</p>
-                <p className="text-sm font-semibold text-slate-700 truncate">{editingHistory.lesson}</p>
-              </div>
-            ) : todaysLessons.length > 1 && !activeLesson ? (
-              <div className="w-full">
-                <p className="text-xs text-slate-400 mb-2">Pick today's lesson:</p>
-                <div className="flex flex-col gap-1.5">
-                  {todaysLessons.map(l => (
-                    <button
-                      key={l}
-                      type="button"
-                      onClick={() => { setActiveLesson(l); setLessonInput(l); setTodaysLessons([]) }}
-                      className="text-left px-4 py-2 bg-slate-100 rounded-xl text-sm font-semibold text-slate-700 hover:bg-teal-50 hover:text-teal-700"
-                    >
-                      {l}
-                    </button>
-                  ))}
-                  <button
-                    type="button"
-                    onClick={() => setTodaysLessons([])}
-                    className="text-xs text-slate-400 hover:text-slate-600 text-left px-1 pt-1"
-                  >
-                    + Start a new lesson
-                  </button>
-                </div>
-              </div>
-            ) : activeLesson ? (
+            {activeLesson ? (
               <div className="flex items-center gap-3 w-full">
                 <div className="flex-1 min-w-0">
                   <p className="text-xs text-slate-400 leading-none mb-0.5">Today's lesson</p>
-                  <p className="text-sm font-semibold text-slate-700 truncate">{activeLesson}</p>
+                  <p className="text-sm font-semibold text-slate-700 truncate">{activeLesson.title}</p>
                 </div>
-                <button
-                  type="button"
-                  onClick={handleSuggestExitTicket}
-                  disabled={exitTicketLoading}
-                  className="text-xs font-semibold text-amber-600 hover:text-amber-700 shrink-0 bg-amber-50 px-3 py-1.5 rounded-xl"
-                >
-                  {exitTicketLoading ? '…' : '💡 Exit Ticket'}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => { setActiveLesson(''); setLessonInput(''); setExitTickets([]); setActiveExitTicket(null); setShowExitTickets(false) }}
-                  className="text-xs text-slate-400 hover:text-slate-600 shrink-0"
-                >
+                {!isDemo && (
+                  <button type="button" onClick={handleSuggestExitTicket} disabled={exitTicketLoading} className="text-xs font-semibold text-amber-600 hover:text-amber-700 shrink-0 bg-amber-50 px-3 py-1.5 rounded-xl">
+                    {exitTicketLoading ? '…' : '💡 Exit Ticket'}
+                  </button>
+                )}
+                <button type="button" onClick={() => { setActiveLesson(null); setLessonInput(''); setExitTickets([]); setActiveExitTicket(null); setShowExitTickets(false) }} className="text-xs text-slate-400 hover:text-slate-600 shrink-0">
                   Change
                 </button>
               </div>
             ) : (() => {
-              // Collect lessons from the plan for the active subject, sorted by date
               const planLessons = activeSubject && savedPlan
                 ? Object.entries(savedPlan.schedule)
                     .sort(([a], [b]) => a.localeCompare(b))
@@ -973,26 +932,8 @@ function App() {
                   <p className="text-xs text-slate-400 mb-2">Pick a lesson:</p>
                   <div className="flex flex-col gap-1.5">
                     {planLessons.map(({ date, title }) => (
-                      <button
-                        key={date}
-                        type="button"
-                        onClick={() => {
-                          setLessonInput(title)
-                          setActiveLesson(title)
-                          setStudentStatuses({})
-                          setLoading(true)
-                          supabase
-                            .from('student_statuses')
-                            .select('class, student, status')
-                            .eq('lesson', title)
-                            .eq('date', date)
-                            .then(({ data }: { data: { class: string; student: string; status: string }[] | null }) => {
-                              const map: Record<string, Status> = {}
-                              if (data) for (const row of data) map[`${row.class}-${row.student}`] = row.status as Status
-                              setStudentStatuses(map)
-                              setLoading(false)
-                            })
-                        }}
+                      <button key={date} type="button"
+                        onClick={() => { setLessonInput(title); startLessonByTitle(title, date) }}
                         className="text-left px-4 py-2 bg-slate-100 rounded-xl text-sm font-semibold text-slate-700 hover:bg-teal-50 hover:text-teal-700 flex items-center justify-between"
                       >
                         <span>{title}</span>
@@ -1000,50 +941,37 @@ function App() {
                       </button>
                     ))}
                     <div className="flex gap-2 mt-1">
-                      <input
-                        type="text"
-                        value={lessonInput}
-                        onChange={e => setLessonInput(e.target.value)}
-                        onKeyDown={e => e.key === 'Enter' && startLesson()}
-                        placeholder="Or type a custom lesson…"
-                        className="flex-1 text-sm bg-slate-50 rounded-xl px-3 py-2 outline-none text-slate-700 placeholder-slate-300 border border-slate-100 focus:border-teal-300"
-                      />
-                      <button
-                        type="button"
-                        onClick={startLesson}
-                        disabled={!lessonInput.trim()}
-                        className="px-4 py-2 bg-teal-500 text-white text-sm font-semibold rounded-xl disabled:opacity-40 shrink-0"
-                      >
-                        Start
-                      </button>
+                      <input type="text" value={lessonInput} onChange={e => setLessonInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && startLesson()} placeholder="Or type a custom lesson…" className="flex-1 text-sm bg-slate-50 rounded-xl px-3 py-2 outline-none text-slate-700 placeholder-slate-300 border border-slate-100 focus:border-teal-300" />
+                      <button type="button" onClick={startLesson} disabled={!lessonInput.trim()} className="px-4 py-2 bg-teal-500 text-white text-sm font-semibold rounded-xl disabled:opacity-40 shrink-0">Start</button>
                     </div>
+                  </div>
+                </div>
+              ) : isDemo ? (
+                <div className="w-full">
+                  <p className="text-xs text-slate-400 mb-2">Pick a demo lesson:</p>
+                  <div className="flex flex-col gap-1.5">
+                    {DEMO_LESSONS.filter(l => l.class_id === selectedClassId).map(l => (
+                      <button key={l.id} type="button"
+                        onClick={() => { setLessonInput(l.title); startLessonByTitle(l.title, l.date) }}
+                        className="text-left px-4 py-2 bg-slate-100 rounded-xl text-sm font-semibold text-slate-700 hover:bg-teal-50 hover:text-teal-700 flex items-center justify-between"
+                      >
+                        <span>{l.title}</span>
+                        <span className="text-xs text-slate-400 font-normal ml-2 shrink-0">{formatDate(l.date)}</span>
+                      </button>
+                    ))}
                   </div>
                 </div>
               ) : (
                 <>
-                  <input
-                    type="text"
-                    value={lessonInput}
-                    onChange={e => setLessonInput(e.target.value)}
-                    onKeyDown={e => e.key === 'Enter' && startLesson()}
-                    placeholder="What are you teaching today?"
-                    className="flex-1 text-sm bg-slate-100 rounded-xl px-4 py-2 outline-none text-slate-700 placeholder-slate-400"
-                  />
-                  <button
-                    type="button"
-                    onClick={startLesson}
-                    disabled={!lessonInput.trim()}
-                    className="px-4 py-2 bg-teal-500 text-white text-sm font-semibold rounded-xl disabled:opacity-40 shrink-0"
-                  >
-                    Start
-                  </button>
+                  <input type="text" value={lessonInput} onChange={e => setLessonInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && startLesson()} placeholder="What are you teaching today?" className="flex-1 text-sm bg-slate-100 rounded-xl px-4 py-2 outline-none text-slate-700 placeholder-slate-400" />
+                  <button type="button" onClick={startLesson} disabled={!lessonInput.trim()} className="px-4 py-2 bg-teal-500 text-white text-sm font-semibold rounded-xl disabled:opacity-40 shrink-0">Start</button>
                 </>
               )
             })()}
           </div>
 
           {/* Exit ticket panel */}
-          {showExitTickets && activeLesson && (
+          {showExitTickets && activeLesson && !isDemo && (
             <div className="bg-amber-50 border-b border-amber-100 px-4 py-3">
               {exitTicketLoading ? (
                 <p className="text-xs text-amber-500 text-center">Generating exit tickets…</p>
@@ -1053,13 +981,7 @@ function App() {
                     <p className="text-xs font-semibold text-amber-700 mb-1">Active Exit Ticket</p>
                     <p className="text-sm font-semibold text-slate-800">{activeExitTicket}</p>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => { setActiveExitTicket(null); setShowExitTickets(false) }}
-                    className="text-xs text-slate-400 hover:text-slate-600 shrink-0 mt-0.5"
-                  >
-                    ✕
-                  </button>
+                  <button type="button" onClick={() => { setActiveExitTicket(null); setShowExitTickets(false) }} className="text-xs text-slate-400 hover:text-slate-600 shrink-0 mt-0.5">✕</button>
                 </div>
               ) : (
                 <div>
@@ -1069,14 +991,7 @@ function App() {
                   </div>
                   <div className="flex flex-col gap-1.5">
                     {exitTickets.map((t, i) => (
-                      <button
-                        key={i}
-                        type="button"
-                        onClick={() => setActiveExitTicket(t)}
-                        className="text-left text-sm text-slate-700 bg-white rounded-xl px-3 py-2 shadow-sm hover:bg-amber-50 hover:text-amber-700"
-                      >
-                        {t}
-                      </button>
+                      <button key={i} type="button" onClick={() => setActiveExitTicket(t)} className="text-left text-sm text-slate-700 bg-white rounded-xl px-3 py-2 shadow-sm hover:bg-amber-50 hover:text-amber-700">{t}</button>
                     ))}
                   </div>
                 </div>
@@ -1084,35 +999,32 @@ function App() {
             </div>
           )}
 
-          {/* Grid */}
+          {/* Student grid */}
           <main className="flex-1 px-4 py-5">
             {!activeLesson ? (
               <div className="flex items-center justify-center h-40 text-slate-400 text-sm">
-                Enter today's lesson to begin
+                {currentStudents.length === 0 ? 'No students in this class yet.' : 'Select a lesson to begin.'}
               </div>
             ) : loading ? (
-              <div className="flex items-center justify-center h-40 text-slate-400 text-sm">Loading...</div>
+              <div className="flex items-center justify-center h-40 text-slate-400 text-sm">Loading…</div>
             ) : (
               <div className="grid grid-cols-4 gap-3">
-                {students.map((student) => {
-                  const key = `${selectedClass}-${student}`
-                  const status = studentStatuses[key] ?? 'got-it'
-                  const initial = student.trim()[0].toUpperCase()
-                  const displayName = formatStudentName(student, nameFormat, students)
+                {currentStudents.map(student => {
+                  const status = studentStatuses[student.id] ?? 'got-it'
+                  const initial = student.name.trim()[0].toUpperCase()
+                  const displayName = formatStudentName(student.name, nameFormat, currentStudents.map(s => s.name))
                   return (
                     <button
-                      key={key}
+                      key={student.id}
                       type="button"
-                      onClick={() => tap(key, selectedClass, student)}
+                      onClick={() => tap(student.id)}
                       className="flex flex-col items-center gap-2 bg-white rounded-2xl py-3 px-1 shadow-sm active:scale-95 transition-transform relative"
                     >
                       <span className={`absolute top-2 right-2 w-2 h-2 rounded-full ${STATUS_DOT[status]}`} />
                       <div className={`w-12 h-12 rounded-full flex items-center justify-center text-lg font-bold ${STATUS_INITIAL_BG[status]} ${STATUS_RING[status]}`}>
                         {initial}
                       </div>
-                      <span className="text-xs font-semibold text-slate-700 leading-tight text-center px-1">
-                        {displayName}
-                      </span>
+                      <span className="text-xs font-semibold text-slate-700 leading-tight text-center px-1">{displayName}</span>
                     </button>
                   )
                 })}
@@ -1120,61 +1032,56 @@ function App() {
             )}
           </main>
         </>
+
       ) : (
-        /* History screen */
+        /* ── HISTORY SCREEN ── */
         <main className="flex-1 flex flex-col">
           <div className="bg-white border-t border-slate-100 px-4 pt-3 pb-0 shadow-sm flex items-end justify-between">
             <div className="flex gap-0">
               {(['student', 'lesson'] as HistoryTab[]).map(tab => (
-                <button
-                  key={tab}
-                  type="button"
-                  onClick={() => { setHistoryTab(tab); setSelectedStudent(null); setSelectedLesson(null) }}
-                  className={`px-5 py-2 text-sm font-semibold border-b-2 transition-colors capitalize ${
-                    historyTab === tab ? 'border-teal-500 text-teal-600' : 'border-transparent text-slate-400 hover:text-slate-600'
-                  }`}
+                <button key={tab} type="button"
+                  onClick={() => { setHistoryTab(tab); setSelectedStudentId(null); setSelectedLesson(null) }}
+                  className={`px-5 py-2 text-sm font-semibold border-b-2 transition-colors capitalize ${historyTab === tab ? 'border-teal-500 text-teal-600' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
                 >
                   By {tab}
                 </button>
               ))}
             </div>
-            <div className="flex gap-1 bg-slate-100 rounded-xl p-1 mb-2">
-              {classNames.map(cn => (
-                <button
-                  key={cn}
-                  type="button"
-                  onClick={() => { setHistoryClass(cn); setSelectedStudent(null); setSelectedLesson(null) }}
-                  className={`px-4 py-1 rounded-lg text-xs font-semibold transition-all ${
-                    historyClass === cn ? 'bg-teal-500 text-white shadow-sm' : 'text-slate-500 hover:text-slate-700'
-                  }`}
-                >
-                  {cn}
-                </button>
-              ))}
-            </div>
+            {classes.length > 1 && (
+              <div className="flex gap-1 bg-slate-100 rounded-xl p-1 mb-2">
+                {classes.map(cls => (
+                  <button key={cls.id} type="button"
+                    onClick={() => { setHistoryClassId(cls.id); setSelectedStudentId(null); setSelectedLesson(null) }}
+                    className={`px-4 py-1 rounded-lg text-xs font-semibold transition-all ${historyClassId === cls.id ? 'bg-teal-500 text-white shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                  >
+                    {cls.name}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
           <div className="flex-1 px-4 py-4 overflow-auto">
             {historyLoading ? (
-              <div className="flex items-center justify-center h-40 text-slate-400 text-sm">Loading...</div>
+              <div className="flex items-center justify-center h-40 text-slate-400 text-sm">Loading…</div>
             ) : historyTab === 'student' ? (
-              selectedStudent ? (
+              selectedStudentId ? (
                 <div>
-                  <button type="button" onClick={() => setSelectedStudent(null)} className="text-sm text-teal-600 mb-3 flex items-center gap-1">← All students</button>
-                  <h2 className="text-base font-bold text-slate-800 mb-3">{formatStudentName(selectedStudent, nameFormat, allStudents.filter(s => s.class === historyClass).map(s => s.name))}</h2>
-                  {studentHistory.length === 0 ? (
+                  <button type="button" onClick={() => setSelectedStudentId(null)} className="text-sm text-teal-600 mb-3 flex items-center gap-1">← All students</button>
+                  <h2 className="text-base font-bold text-slate-800 mb-3">
+                    {formatStudentName(historyStudents.find(s => s.id === selectedStudentId)?.name ?? '', nameFormat, historyStudents.map(s => s.name))}
+                  </h2>
+                  {studentHistoryRows.length === 0 ? (
                     <p className="text-slate-400 text-sm">No data yet.</p>
                   ) : (
                     <div className="flex flex-col gap-2">
-                      {studentHistory.map((row, i) => (
+                      {studentHistoryRows.map((row, i) => (
                         <div key={i} className="bg-white rounded-2xl px-4 py-3 shadow-sm flex items-center justify-between">
                           <div>
-                            <p className="text-sm font-semibold text-slate-700">{row.lesson}</p>
-                            <p className="text-xs text-slate-400 mt-0.5">{formatDate(row.date)} · {row.class}</p>
+                            <p className="text-sm font-semibold text-slate-700">{row.lesson_title}</p>
+                            <p className="text-xs text-slate-400 mt-0.5">{formatDate(row.date)} · {row.class_name}</p>
                           </div>
-                          <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${STATUS_PILL[row.status as Status]}`}>
-                            {STATUS_LABEL[row.status as Status]}
-                          </span>
+                          <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${STATUS_PILL[row.status as Status]}`}>{STATUS_LABEL[row.status as Status]}</span>
                         </div>
                       ))}
                     </div>
@@ -1182,19 +1089,13 @@ function App() {
                 </div>
               ) : (
                 <div className="grid grid-cols-4 gap-2">
-                  {allStudents.filter(s => s.class === historyClass).map(s => {
-                    const rows = filteredHistoryData.filter(r => r.student === s.name)
+                  {historyStudents.map(s => {
+                    const rows = filteredHistory.filter(r => r.student_id === s.id)
                     const needsHelp = rows.filter(r => r.status === 'needs-help').length
                     const almost = rows.filter(r => r.status === 'almost').length
-                    const classmates = allStudents.filter(x => x.class === historyClass).map(x => x.name)
                     return (
-                      <button
-                        key={`${s.class}-${s.name}`}
-                        type="button"
-                        onClick={() => setSelectedStudent(s.name)}
-                        className="bg-white rounded-2xl px-3 py-3 shadow-sm flex flex-col items-center text-center gap-1"
-                      >
-                        <p className="text-sm font-semibold text-slate-700 leading-tight">{formatStudentName(s.name, nameFormat, classmates)}</p>
+                      <button key={s.id} type="button" onClick={() => setSelectedStudentId(s.id)} className="bg-white rounded-2xl px-3 py-3 shadow-sm flex flex-col items-center text-center gap-1">
+                        <p className="text-sm font-semibold text-slate-700 leading-tight">{formatStudentName(s.name, nameFormat, historyStudents.map(x => x.name))}</p>
                         <p className="text-xs text-slate-400">{rows.length} lesson{rows.length !== 1 ? 's' : ''}</p>
                         <div className="flex flex-wrap justify-center gap-1 mt-0.5">
                           {needsHelp > 0 && <span className="text-xs font-semibold px-1.5 py-0.5 rounded-full bg-red-100 text-red-600">{needsHelp} ⚠</span>}
@@ -1209,32 +1110,18 @@ function App() {
               selectedLesson ? (
                 <div>
                   <button type="button" onClick={() => setSelectedLesson(null)} className="text-sm text-teal-600 mb-3 flex items-center gap-1">← All lessons</button>
-                  <div className="flex items-start justify-between mb-3">
-                    <div>
-                      <h2 className="text-base font-bold text-slate-800">{selectedLesson.lesson}</h2>
-                      <p className="text-xs text-slate-400">{formatDate(selectedLesson.date)}</p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => openHistoryEdit(selectedLesson.lesson, selectedLesson.date, historyClass)}
-                      className="text-xs font-semibold text-teal-600 bg-teal-50 px-3 py-1.5 rounded-xl shrink-0 ml-3"
-                    >
-                      ✏️ Edit responses
-                    </button>
+                  <div className="mb-3">
+                    <h2 className="text-base font-bold text-slate-800">{selectedLesson.lesson_title}</h2>
+                    <p className="text-xs text-slate-400">{formatDate(selectedLesson.date)}</p>
                   </div>
                   {lessonDetail.length === 0 ? (
                     <p className="text-slate-400 text-sm">No data.</p>
                   ) : (
                     <div className="flex flex-col gap-2">
-                      {lessonDetail.sort((a, b) => a.student.localeCompare(b.student)).map((row, i) => (
+                      {lessonDetail.sort((a, b) => a.student_name.localeCompare(b.student_name)).map((row, i) => (
                         <div key={i} className="bg-white rounded-2xl px-4 py-3 shadow-sm flex items-center justify-between">
-                          <div>
-                            <p className="text-sm font-semibold text-slate-700">{formatStudentName(row.student, nameFormat, allStudents.filter(s => s.class === row.class as ClassName).map(s => s.name))}</p>
-                            <p className="text-xs text-slate-400 mt-0.5">{row.class}</p>
-                          </div>
-                          <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${STATUS_PILL[row.status as Status]}`}>
-                            {STATUS_LABEL[row.status as Status]}
-                          </span>
+                          <p className="text-sm font-semibold text-slate-700">{formatStudentName(row.student_name, nameFormat, historyStudents.map(s => s.name))}</p>
+                          <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${STATUS_PILL[row.status as Status]}`}>{STATUS_LABEL[row.status as Status]}</span>
                         </div>
                       ))}
                     </div>
@@ -1249,14 +1136,9 @@ function App() {
                     const almost = g.rows.filter(r => r.status === 'almost').length
                     const gotIt = g.rows.filter(r => r.status === 'got-it').length
                     return (
-                      <button
-                        key={i}
-                        type="button"
-                        onClick={() => setSelectedLesson({ lesson: g.lesson, date: g.date })}
-                        className="bg-white rounded-2xl px-4 py-3 shadow-sm flex items-center justify-between text-left"
-                      >
+                      <button key={i} type="button" onClick={() => setSelectedLesson({ lesson_id: g.lesson_id, lesson_title: g.lesson_title, date: g.date })} className="bg-white rounded-2xl px-4 py-3 shadow-sm flex items-center justify-between text-left">
                         <div>
-                          <p className="text-sm font-semibold text-slate-700">{g.lesson}</p>
+                          <p className="text-sm font-semibold text-slate-700">{g.lesson_title}</p>
                           <p className="text-xs text-slate-400 mt-0.5">{formatDate(g.date)} · {g.rows.length} student{g.rows.length !== 1 ? 's' : ''}</p>
                         </div>
                         <div className="flex gap-1 flex-wrap justify-end max-w-32">
@@ -1276,5 +1158,3 @@ function App() {
     </div>
   )
 }
-
-export default App
