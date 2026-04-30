@@ -1136,7 +1136,7 @@ function App() {
                   )}
                 </div>
               ) : (
-                <div className="flex flex-col gap-2">
+                <div className="grid grid-cols-4 gap-2">
                   {allStudents.filter(s => s.class === historyClass).map(s => {
                     const rows = filteredHistoryData.filter(r => r.student === s.name)
                     const needsHelp = rows.filter(r => r.status === 'needs-help').length
@@ -1146,15 +1146,13 @@ function App() {
                         key={`${s.class}-${s.name}`}
                         type="button"
                         onClick={() => setSelectedStudent(s.name)}
-                        className="bg-white rounded-2xl px-4 py-3 shadow-sm flex items-center justify-between text-left"
+                        className="bg-white rounded-2xl px-3 py-3 shadow-sm flex flex-col items-center text-center gap-1"
                       >
-                        <div>
-                          <p className="text-sm font-semibold text-slate-700">{s.name}</p>
-                          <p className="text-xs text-slate-400 mt-0.5">{s.class} · {rows.length} lesson{rows.length !== 1 ? 's' : ''}</p>
-                        </div>
-                        <div className="flex gap-1.5">
-                          {needsHelp > 0 && <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-red-100 text-red-600">{needsHelp} needs help</span>}
-                          {almost > 0 && <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-700">{almost} almost</span>}
+                        <p className="text-sm font-semibold text-slate-700 leading-tight">{s.name}</p>
+                        <p className="text-xs text-slate-400">{rows.length} lesson{rows.length !== 1 ? 's' : ''}</p>
+                        <div className="flex flex-wrap justify-center gap-1 mt-0.5">
+                          {needsHelp > 0 && <span className="text-xs font-semibold px-1.5 py-0.5 rounded-full bg-red-100 text-red-600">{needsHelp} ⚠</span>}
+                          {almost > 0 && <span className="text-xs font-semibold px-1.5 py-0.5 rounded-full bg-yellow-100 text-yellow-700">{almost} ~</span>}
                         </div>
                       </button>
                     )
