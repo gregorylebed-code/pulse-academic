@@ -1,0 +1,17 @@
+{
+  "name": "Pulse Academic Tracker",
+  "short_name": "Pulse",
+  "description": "Track student comprehension in real time",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f5f0e8",
+  "theme_color": "#0d9488",
+  "icons": [
+    {
+      "src": "/pulse.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
