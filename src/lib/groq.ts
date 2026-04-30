@@ -17,27 +17,39 @@ async function groqChat(messages: { role: string; content: string }[]): Promise<
 
 export type DayLesson = {
   title: string        // short lesson name shown in tracker input
-  subject: string      // e.g. "Math", "Social Studies"
+  subject: string      // e.g. "Math", "Science"
   objective: string
   activities: string
   assessment: string
 }
 
-export async function parseLessonPlan(text: string, weekStart: string): Promise<Record<string, DayLesson>> {
-  const prompt = `You are a helpful assistant for teachers. Given this lesson plan text, extract the PRIMARY lesson taught each school day (Monday–Friday) of the week starting ${weekStart}. Focus on the main academic subject (Math or the most important lesson if multiple subjects exist per day).
+// All subjects found across the week, keyed by date then subject name
+export type WeekSchedule = Record<string, Record<string, DayLesson>>
+
+export async function parseLessonPlan(text: string, weekStart: string): Promise<WeekSchedule> {
+  const prompt = `You are a helpful assistant for teachers. Given this lesson plan text, extract ALL subjects taught each school day (Monday–Friday) of the week starting ${weekStart}. A teacher may teach multiple subjects per day (e.g. Math, Science, Health, Reading).
 
 Return ONLY valid JSON in this format (use ISO dates YYYY-MM-DD for the week of ${weekStart}):
 {
   "2025-01-06": {
-    "title": "Short lesson name (under 50 chars)",
-    "subject": "Math",
-    "objective": "One sentence objective",
-    "activities": "Brief summary of main activities (1-2 sentences)",
-    "assessment": "Exit ticket or assessment method"
+    "Math": {
+      "title": "Short lesson name (under 50 chars)",
+      "subject": "Math",
+      "objective": "One sentence objective",
+      "activities": "Brief summary of main activities (1-2 sentences)",
+      "assessment": "Exit ticket or assessment method"
+    },
+    "Science": {
+      "title": "Short lesson name (under 50 chars)",
+      "subject": "Science",
+      "objective": "One sentence objective",
+      "activities": "Brief summary of main activities (1-2 sentences)",
+      "assessment": "Exit ticket or assessment method"
+    }
   }
 }
 
-Only include days that have a clear lesson. Do not include any explanation outside the JSON.
+Only include days and subjects that have a clear lesson. Do not include any explanation outside the JSON.
 
 Lesson plan text:
 ${text.slice(0, 6000)}`

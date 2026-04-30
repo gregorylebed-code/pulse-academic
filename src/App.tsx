@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from './lib/supabase'
-import { parseLessonPlan, suggestExitTickets, type DayLesson } from './lib/groq'
+import { parseLessonPlan, suggestExitTickets, type DayLesson, type WeekSchedule } from './lib/groq'
 
 type ClassName = 'AM' | 'PM'
 type Status = 'got-it' | 'almost' | 'needs-help'
@@ -133,16 +133,22 @@ function App() {
   const [planText, setPlanText] = useState('')
   const [planLoading, setPlanLoading] = useState(false)
   const [planError, setPlanError] = useState('')
-  const [savedPlan, setSavedPlan] = useState<{ weekStart: string; schedule: Record<string, DayLesson> } | null>(null)
+  const [savedPlan, setSavedPlan] = useState<{ weekStart: string; schedule: WeekSchedule; trackedSubjects: string[] } | null>(null)
   const [expandedDay, setExpandedDay] = useState<string | null>(null)
   const [editingDay, setEditingDay] = useState<string | null>(null)
+  const [editSubject, setEditSubject] = useState<string | null>(null)
   const [editDraft, setEditDraft] = useState<DayLesson | null>(null)
   const [swapSource, setSwapSource] = useState<string | null>(null)
   const [skipConfirmDay, setSkipConfirmDay] = useState<string | null>(null)
   const [planSaving, setPlanSaving] = useState(false)
-  const [undoSnapshot, setUndoSnapshot] = useState<Record<string, DayLesson> | null>(null)
+  const [undoSnapshot, setUndoSnapshot] = useState<WeekSchedule | null>(null)
   const [planSaved, setPlanSaved] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  // Subject picker after upload
+  const [pendingSchedule, setPendingSchedule] = useState<WeekSchedule | null>(null)
+  const [subjectChoices, setSubjectChoices] = useState<string[]>([])
+  // Active subject tab on tracker
+  const [activeSubject, setActiveSubject] = useState<string | null>(null)
 
   // History state
   const [historyTab, setHistoryTab] = useState<HistoryTab>('student')
@@ -159,23 +165,26 @@ function App() {
   useEffect(() => {
     supabase
       .from('lesson_plans')
-      .select('week_start, schedule')
+      .select('week_start, schedule, tracked_subjects')
       .eq('week_start', weekStart)
       .maybeSingle()
-      .then(({ data }: { data: { week_start: string; schedule: Record<string, DayLesson> } | null }) => {
+      .then(({ data }: { data: { week_start: string; schedule: WeekSchedule; tracked_subjects: string[] } | null }) => {
         if (data) {
-          setSavedPlan({ weekStart: data.week_start, schedule: data.schedule })
-          const todayLesson = data.schedule[today]
-          if (todayLesson) setLessonInput(todayLesson.title)
+          const tracked = data.tracked_subjects ?? []
+          setSavedPlan({ weekStart: data.week_start, schedule: data.schedule, trackedSubjects: tracked })
+          if (tracked.length > 0) setActiveSubject(tracked[0])
+          const todayDay = data.schedule[today]
+          const firstSubject = tracked[0]
+          if (todayDay && firstSubject && todayDay[firstSubject]) setLessonInput(todayDay[firstSubject].title)
         }
       })
 
     setLoading(true)
     supabase
       .from('student_statuses')
-      .select('lesson')
+      .select('lesson, subject')
       .eq('date', today)
-      .then(({ data }: { data: { lesson: string }[] | null }) => {
+      .then(({ data }: { data: { lesson: string; subject: string | null }[] | null }) => {
         if (!data || data.length === 0) { setLoading(false); return }
         const lessons = [...new Set(data.map(r => r.lesson))]
         if (lessons.length === 1) {
@@ -228,11 +237,11 @@ function App() {
     if (screen !== 'plan') return
     supabase
       .from('lesson_plans')
-      .select('week_start, schedule')
+      .select('week_start, schedule, tracked_subjects')
       .eq('week_start', weekStart)
       .maybeSingle()
-      .then(({ data }: { data: { week_start: string; schedule: Record<string, DayLesson> } | null }) => {
-        if (data) setSavedPlan({ weekStart: data.week_start, schedule: data.schedule })
+      .then(({ data }: { data: { week_start: string; schedule: WeekSchedule; tracked_subjects: string[] } | null }) => {
+        if (data) setSavedPlan({ weekStart: data.week_start, schedule: data.schedule, trackedSubjects: data.tracked_subjects ?? [] })
       })
   }, [screen, weekStart])
 
@@ -246,6 +255,22 @@ function App() {
     setShowExitTickets(false)
   }
 
+  function switchSubject(subject: string) {
+    setActiveSubject(subject)
+    setActiveLesson('')
+    setLessonInput('')
+    setStudentStatuses({})
+    setExitTickets([])
+    setActiveExitTicket(null)
+    setShowExitTickets(false)
+    setTodaysLessons([])
+    // Pre-fill lesson input from plan if available
+    if (savedPlan) {
+      const todayDay = savedPlan.schedule[today]
+      if (todayDay?.[subject]) setLessonInput(todayDay[subject].title)
+    }
+  }
+
   function tap(key: string, className: ClassName, student: string) {
     setStudentStatuses(current => {
       const cur = current[key] ?? 'got-it'
@@ -253,7 +278,7 @@ function App() {
       supabase
         .from('student_statuses')
         .upsert(
-          { class: className, student, lesson: activeLesson, date: today, status: next },
+          { class: className, student, lesson: activeLesson, date: today, status: next, subject: activeSubject },
           { onConflict: 'class,student,lesson,date' }
         )
         .then()
@@ -267,7 +292,7 @@ function App() {
     setShowExitTickets(true)
     setActiveExitTicket(null)
     try {
-      const todayPlan = savedPlan?.schedule[today]
+      const todayPlan = activeSubject ? savedPlan?.schedule[today]?.[activeSubject] : undefined
       const tickets = await suggestExitTickets(todayPlan ?? activeLesson)
       setExitTickets(tickets)
     } catch {
@@ -297,15 +322,16 @@ function App() {
     setPlanSaved(false)
     try {
       const schedule = await parseLessonPlan(planText, weekStart)
-      await supabase
-        .from('lesson_plans')
-        .upsert({ week_start: weekStart, schedule }, { onConflict: 'week_start' })
-      setSavedPlan({ weekStart, schedule })
+      // Collect all unique subjects found across the week
+      const found = new Set<string>()
+      for (const day of Object.values(schedule)) {
+        for (const subject of Object.keys(day)) found.add(subject)
+      }
+      const allSubjects = [...found].sort()
+      setPendingSchedule(schedule)
+      // Pre-select all subjects so teacher just unchecks what they don't want
+      setSubjectChoices(allSubjects)
       setPlanText('')
-      setPlanSaved(true)
-      const todayLesson = schedule[today]
-      if (todayLesson) setLessonInput(todayLesson.title)
-      setTimeout(() => setPlanSaved(false), 3000)
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err)
       setPlanError(`Error: ${msg}`)
@@ -315,15 +341,42 @@ function App() {
     }
   }
 
-  async function persistSchedule(schedule: Record<string, DayLesson>, snapshot?: Record<string, DayLesson>) {
+  async function confirmSubjects() {
+    if (!pendingSchedule || subjectChoices.length === 0) return
+    setPlanSaving(true)
+    // Filter schedule to only tracked subjects
+    const filtered: WeekSchedule = {}
+    for (const [date, day] of Object.entries(pendingSchedule)) {
+      const kept: Record<string, DayLesson> = {}
+      for (const subj of subjectChoices) {
+        if (day[subj]) kept[subj] = day[subj]
+      }
+      if (Object.keys(kept).length > 0) filtered[date] = kept
+    }
+    await supabase
+      .from('lesson_plans')
+      .upsert({ week_start: weekStart, schedule: filtered, tracked_subjects: subjectChoices }, { onConflict: 'week_start' })
+    setSavedPlan({ weekStart, schedule: filtered, trackedSubjects: subjectChoices })
+    setActiveSubject(subjectChoices[0])
+    const todayDay = filtered[today]
+    if (todayDay?.[subjectChoices[0]]) setLessonInput(todayDay[subjectChoices[0]].title)
+    setPendingSchedule(null)
+    setPlanSaving(false)
+    setPlanSaved(true)
+    setTimeout(() => setPlanSaved(false), 3000)
+  }
+
+  async function persistSchedule(schedule: WeekSchedule, snapshot?: WeekSchedule) {
+    if (!savedPlan) return
     if (snapshot !== undefined) setUndoSnapshot(snapshot)
     setPlanSaving(true)
     await supabase
       .from('lesson_plans')
-      .upsert({ week_start: weekStart, schedule }, { onConflict: 'week_start' })
-    setSavedPlan({ weekStart, schedule })
-    const todayLesson = schedule[today]
-    if (todayLesson) setLessonInput(todayLesson.title)
+      .upsert({ week_start: weekStart, schedule, tracked_subjects: savedPlan.trackedSubjects }, { onConflict: 'week_start' })
+    setSavedPlan({ weekStart, schedule, trackedSubjects: savedPlan.trackedSubjects })
+    const todayDay = schedule[today]
+    const subj = activeSubject ?? savedPlan.trackedSubjects[0]
+    if (todayDay?.[subj]) setLessonInput(todayDay[subj].title)
     setPlanSaving(false)
   }
 
@@ -333,46 +386,47 @@ function App() {
     setUndoSnapshot(null)
   }
 
-  function startEdit(dateISO: string) {
-    const lesson = savedPlan?.schedule[dateISO]
+  function startEdit(dateISO: string, subject: string) {
+    const lesson = savedPlan?.schedule[dateISO]?.[subject]
     setEditingDay(dateISO)
-    setEditDraft(lesson ? { ...lesson } : { title: '', subject: '', objective: '', activities: '', assessment: '' })
+    setEditSubject(subject)
+    setEditDraft(lesson ? { ...lesson } : { title: '', subject, objective: '', activities: '', assessment: '' })
     setExpandedDay(null)
     setSwapSource(null)
   }
 
   async function saveEdit() {
-    if (!savedPlan || !editingDay || !editDraft) return
-    const snapshot = { ...savedPlan.schedule }
-    const schedule = { ...savedPlan.schedule }
+    if (!savedPlan || !editingDay || !editSubject || !editDraft) return
+    const snapshot: WeekSchedule = JSON.parse(JSON.stringify(savedPlan.schedule))
+    const schedule: WeekSchedule = JSON.parse(JSON.stringify(savedPlan.schedule))
     if (editDraft.title.trim()) {
-      schedule[editingDay] = editDraft
+      if (!schedule[editingDay]) schedule[editingDay] = {}
+      schedule[editingDay][editSubject] = editDraft
     } else {
-      delete schedule[editingDay]
+      if (schedule[editingDay]) {
+        delete schedule[editingDay][editSubject]
+        if (Object.keys(schedule[editingDay]).length === 0) delete schedule[editingDay]
+      }
     }
     setEditingDay(null)
+    setEditSubject(null)
     setEditDraft(null)
     await persistSchedule(schedule, snapshot)
   }
 
   async function skipDay(dateISO: string, pushBack: boolean) {
     if (!savedPlan) return
-    const snapshot = { ...savedPlan.schedule }
-    const schedule = { ...savedPlan.schedule }
+    const snapshot: WeekSchedule = JSON.parse(JSON.stringify(savedPlan.schedule))
+    const schedule: WeekSchedule = JSON.parse(JSON.stringify(savedPlan.schedule))
     if (!pushBack) {
       delete schedule[dateISO]
     } else {
       const [y, m, d] = dateISO.split('-').map(Number)
       const skippedDate = new Date(y, m - 1, d)
-      // Shift the skipped day AND all days after it forward by one school day
       const datesToShift = Object.keys(schedule)
-        .filter(k => {
-          const [ky, km, kd] = k.split('-').map(Number)
-          return new Date(ky, km - 1, kd) >= skippedDate
-        })
+        .filter(k => { const [ky, km, kd] = k.split('-').map(Number); return new Date(ky, km - 1, kd) >= skippedDate })
         .sort()
-      // Build the shifted map first, then apply all at once
-      const shifted: Record<string, DayLesson> = {}
+      const shifted: WeekSchedule = {}
       for (const k of datesToShift) {
         const [ky, km, kd] = k.split('-').map(Number)
         const next = new Date(ky, km - 1, kd + 1)
@@ -381,7 +435,6 @@ function App() {
         const nextISO = `${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, '0')}-${String(next.getDate()).padStart(2, '0')}`
         shifted[nextISO] = schedule[k]
       }
-      // Remove all original keys (including skipped day), then write shifted positions
       for (const k of datesToShift) delete schedule[k]
       Object.assign(schedule, shifted)
     }
@@ -392,14 +445,10 @@ function App() {
 
   async function handleSwap(dateISO: string) {
     if (!savedPlan) return
-    if (!swapSource) {
-      setSwapSource(dateISO)
-      setExpandedDay(null)
-      return
-    }
+    if (!swapSource) { setSwapSource(dateISO); setExpandedDay(null); return }
     if (swapSource === dateISO) { setSwapSource(null); return }
-    const snapshot = { ...savedPlan.schedule }
-    const schedule = { ...savedPlan.schedule }
+    const snapshot: WeekSchedule = JSON.parse(JSON.stringify(savedPlan.schedule))
+    const schedule: WeekSchedule = JSON.parse(JSON.stringify(savedPlan.schedule))
     const a = schedule[swapSource]
     const b = schedule[dateISO]
     if (a) schedule[dateISO] = a; else delete schedule[dateISO]
@@ -410,16 +459,16 @@ function App() {
 
   async function copyToNext(dateISO: string) {
     if (!savedPlan) return
-    const lesson = savedPlan.schedule[dateISO]
-    if (!lesson) return
+    const day = savedPlan.schedule[dateISO]
+    if (!day) return
     const [y, m, d] = dateISO.split('-').map(Number)
     const next = new Date(y, m - 1, d + 1)
-    // skip weekend
     if (next.getDay() === 6) next.setDate(next.getDate() + 2)
     if (next.getDay() === 0) next.setDate(next.getDate() + 1)
     const nextISO = `${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, '0')}-${String(next.getDate()).padStart(2, '0')}`
-    const snapshot = { ...savedPlan.schedule }
-    const schedule = { ...savedPlan.schedule, [nextISO]: { ...lesson } }
+    const snapshot: WeekSchedule = JSON.parse(JSON.stringify(savedPlan.schedule))
+    const schedule: WeekSchedule = JSON.parse(JSON.stringify(savedPlan.schedule))
+    schedule[nextISO] = JSON.parse(JSON.stringify(day))
     setExpandedDay(null)
     await persistSchedule(schedule, snapshot)
   }
@@ -514,12 +563,72 @@ function App() {
         </div>
       </header>
 
+      {/* Subject tabs — shown on tracker screen when plan has multiple subjects */}
+      {screen === 'tracker' && savedPlan && savedPlan.trackedSubjects.length > 1 && (
+        <div className="bg-white border-b border-slate-100 px-4 flex gap-0">
+          {savedPlan.trackedSubjects.map(subj => (
+            <button
+              key={subj}
+              type="button"
+              onClick={() => switchSubject(subj)}
+              className={`px-5 py-2.5 text-sm font-semibold border-b-2 transition-colors ${
+                activeSubject === subj ? 'border-teal-500 text-teal-600' : 'border-transparent text-slate-400 hover:text-slate-600'
+              }`}
+            >
+              {subj}
+            </button>
+          ))}
+        </div>
+      )}
+
       {screen === 'plan' ? (
         <main className="flex-1 px-4 py-5 max-w-lg mx-auto w-full">
           <h2 className="text-base font-bold text-slate-800 mb-1">Weekly Lesson Plan</h2>
           <p className="text-xs text-slate-400 mb-4">{formatWeek(weekStart)}</p>
 
-          {savedPlan ? (
+          {/* Subject picker — shown after AI parses the plan */}
+          {pendingSchedule && (
+            <div className="bg-white rounded-2xl shadow-sm px-4 py-4 mb-4">
+              <p className="text-sm font-semibold text-slate-700 mb-1">Which subjects do you want to track?</p>
+              <p className="text-xs text-slate-400 mb-4">Uncheck any subjects you don't grade (e.g. Health, PE).</p>
+              <div className="flex flex-col gap-2 mb-4">
+                {(() => {
+                  const found = new Set<string>()
+                  for (const day of Object.values(pendingSchedule)) for (const subj of Object.keys(day)) found.add(subj)
+                  return [...found].sort().map(subj => (
+                    <label key={subj} className="flex items-center gap-3 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={subjectChoices.includes(subj)}
+                        onChange={e => setSubjectChoices(e.target.checked ? [...subjectChoices, subj] : subjectChoices.filter(s => s !== subj))}
+                        className="w-4 h-4 accent-teal-500"
+                      />
+                      <span className="text-sm font-semibold text-slate-700">{subj}</span>
+                    </label>
+                  ))
+                })()}
+              </div>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={confirmSubjects}
+                  disabled={subjectChoices.length === 0 || planSaving}
+                  className="flex-1 py-2.5 bg-teal-500 text-white text-sm font-semibold rounded-2xl disabled:opacity-40"
+                >
+                  {planSaving ? 'Saving…' : `Save with ${subjectChoices.length} subject${subjectChoices.length !== 1 ? 's' : ''}`}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setPendingSchedule(null); setSubjectChoices([]) }}
+                  className="px-4 py-2.5 bg-slate-100 text-slate-500 text-sm font-semibold rounded-2xl"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
+
+          {savedPlan && !pendingSchedule ? (
             <div className="bg-white rounded-2xl shadow-sm px-4 py-3 mb-5">
               <div className="flex items-center justify-between mb-2">
                 <p className="text-xs font-semibold text-teal-600 uppercase tracking-wide">This week's schedule</p>
@@ -533,18 +642,20 @@ function App() {
               </div>
               {DAYS.map((dayName, i) => {
                 const dateISO = getDateForDayOffset(i)
-                const lesson = savedPlan.schedule[dateISO]
+                const dayLessons = savedPlan.schedule[dateISO] ?? {}
                 const isToday = dateISO === today
                 const isExpanded = expandedDay === dateISO
                 const isEditing = editingDay === dateISO
                 const isSwapSource = swapSource === dateISO
+                const subjects = savedPlan.trackedSubjects.filter(s => dayLessons[s])
 
-                if (isEditing && editDraft) {
+                if (isEditing && editDraft && editSubject) {
                   return (
                     <div key={dayName} className="border-b border-slate-50 last:border-0 py-3">
-                      <p className="text-xs font-semibold text-teal-600 mb-2">{dayName}</p>
+                      <p className="text-xs font-semibold text-teal-600 mb-0.5">{dayName}</p>
+                      <p className="text-xs text-slate-400 mb-2">{editSubject}</p>
                       <div className="flex flex-col gap-2">
-                        {(['title', 'subject', 'objective', 'activities', 'assessment'] as (keyof DayLesson)[]).map(field => (
+                        {(['title', 'objective', 'activities', 'assessment'] as (keyof DayLesson)[]).filter(f => f !== 'subject').map(field => (
                           <div key={field}>
                             <p className="text-xs text-slate-400 uppercase tracking-wide mb-0.5">{field}</p>
                             {field === 'objective' || field === 'activities' || field === 'assessment' ? (
@@ -567,7 +678,7 @@ function App() {
                       </div>
                       <div className="flex gap-2 mt-3">
                         <button type="button" onClick={saveEdit} className="px-4 py-1.5 bg-teal-500 text-white text-xs font-semibold rounded-xl">Save</button>
-                        <button type="button" onClick={() => { setEditingDay(null); setEditDraft(null) }} className="px-4 py-1.5 bg-slate-100 text-slate-500 text-xs font-semibold rounded-xl">Cancel</button>
+                        <button type="button" onClick={() => { setEditingDay(null); setEditSubject(null); setEditDraft(null) }} className="px-4 py-1.5 bg-slate-100 text-slate-500 text-xs font-semibold rounded-xl">Cancel</button>
                       </div>
                     </div>
                   )
@@ -584,44 +695,50 @@ function App() {
                       className="flex items-start gap-3 py-2.5 w-full text-left"
                     >
                       <span className={`text-xs font-semibold w-10 shrink-0 mt-0.5 ${isToday ? 'text-teal-600' : isSwapSource ? 'text-amber-500' : 'text-slate-400'}`}>{dayName.slice(0, 3)}</span>
-                      <div className="flex-1 min-w-0">
-                        {lesson ? (
-                          <>
-                            <span className="text-sm font-semibold text-slate-700">{lesson.title}</span>
-                            <span className="text-xs text-slate-400 ml-2">{lesson.subject}</span>
-                          </>
-                        ) : (
+                      <div className="flex-1 min-w-0 flex flex-col gap-0.5">
+                        {subjects.length > 0 ? subjects.map(subj => (
+                          <div key={subj} className="flex items-baseline gap-2">
+                            <span className="text-xs font-semibold text-slate-400 w-14 shrink-0">{subj}</span>
+                            <span className="text-sm font-semibold text-slate-700 truncate">{dayLessons[subj].title}</span>
+                          </div>
+                        )) : (
                           <span className="text-slate-300 italic text-sm">No lesson</span>
                         )}
                       </div>
                       {!swapSource && <span className="text-slate-300 text-xs mt-0.5">{isExpanded ? '▲' : '▼'}</span>}
                     </button>
                     {isExpanded && !swapSource && (
-                      <div className="pb-3 flex flex-col gap-2" style={{ paddingLeft: '3.25rem' }}>
-                        {lesson && (
-                          <>
-                            <div>
-                              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-0.5">Objective</p>
-                              <p className="text-sm text-slate-700">{lesson.objective}</p>
+                      <div className="pb-3 flex flex-col gap-4" style={{ paddingLeft: '3.25rem' }}>
+                        {subjects.map(subj => {
+                          const lesson = dayLessons[subj]
+                          return (
+                            <div key={subj}>
+                              <p className="text-xs font-bold text-teal-600 mb-1.5">{subj}</p>
+                              <div className="flex flex-col gap-1.5">
+                                <div>
+                                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-0.5">Objective</p>
+                                  <p className="text-sm text-slate-700">{lesson.objective}</p>
+                                </div>
+                                <div>
+                                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-0.5">Activities</p>
+                                  <p className="text-sm text-slate-700">{lesson.activities}</p>
+                                </div>
+                                <div>
+                                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-0.5">Assessment</p>
+                                  <p className="text-sm text-slate-700">{lesson.assessment}</p>
+                                </div>
+                              </div>
+                              <button type="button" onClick={() => startEdit(dateISO, subj)} className="mt-2 text-xs font-semibold px-3 py-1.5 bg-slate-100 text-slate-600 rounded-xl hover:bg-teal-50 hover:text-teal-700">✏️ Edit {subj}</button>
                             </div>
-                            <div>
-                              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-0.5">Activities</p>
-                              <p className="text-sm text-slate-700">{lesson.activities}</p>
-                            </div>
-                            <div>
-                              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-0.5">Assessment</p>
-                              <p className="text-sm text-slate-700">{lesson.assessment}</p>
-                            </div>
-                          </>
-                        )}
-                        <div className="flex flex-wrap gap-2 mt-1">
-                          <button type="button" onClick={() => startEdit(dateISO)} className="text-xs font-semibold px-3 py-1.5 bg-slate-100 text-slate-600 rounded-xl hover:bg-teal-50 hover:text-teal-700">✏️ Edit</button>
+                          )
+                        })}
+                        <div className="flex flex-wrap gap-2">
                           <button type="button" onClick={() => handleSwap(dateISO)} className="text-xs font-semibold px-3 py-1.5 bg-slate-100 text-slate-600 rounded-xl hover:bg-amber-50 hover:text-amber-700">⇄ Swap day</button>
-                          {lesson && <button type="button" onClick={() => copyToNext(dateISO)} className="text-xs font-semibold px-3 py-1.5 bg-slate-100 text-slate-600 rounded-xl hover:bg-blue-50 hover:text-blue-700">→ Copy to next day</button>}
-                          {lesson && skipConfirmDay !== dateISO && (
+                          {subjects.length > 0 && <button type="button" onClick={() => copyToNext(dateISO)} className="text-xs font-semibold px-3 py-1.5 bg-slate-100 text-slate-600 rounded-xl hover:bg-blue-50 hover:text-blue-700">→ Copy to next day</button>}
+                          {subjects.length > 0 && skipConfirmDay !== dateISO && (
                             <button type="button" onClick={() => setSkipConfirmDay(dateISO)} className="text-xs font-semibold px-3 py-1.5 bg-slate-100 text-red-400 rounded-xl hover:bg-red-50">✕ Skip day</button>
                           )}
-                          {lesson && skipConfirmDay === dateISO && (
+                          {subjects.length > 0 && skipConfirmDay === dateISO && (
                             <div className="flex flex-col gap-1.5 w-full mt-1">
                               <p className="text-xs text-slate-500 font-semibold">Skip how?</p>
                               <button type="button" onClick={() => skipDay(dateISO, false)} className="text-xs font-semibold px-3 py-1.5 bg-red-50 text-red-500 rounded-xl text-left">✕ Just remove this day</button>
@@ -637,13 +754,13 @@ function App() {
               })}
               <button
                 type="button"
-                onClick={() => { setSavedPlan(null); setExpandedDay(null); setEditingDay(null); setSwapSource(null) }}
+                onClick={() => { setSavedPlan(null); setExpandedDay(null); setEditingDay(null); setEditSubject(null); setSwapSource(null) }}
                 className="text-xs text-slate-400 hover:text-slate-600 mt-3"
               >
                 Upload new plan
               </button>
             </div>
-          ) : (
+          ) : !pendingSchedule ? (
             <>
               <div className="bg-white rounded-2xl shadow-sm px-4 py-4 mb-4">
                 <p className="text-sm font-semibold text-slate-700 mb-3">Upload or paste your lesson plan</p>
@@ -684,7 +801,7 @@ function App() {
                 <p className="text-xs text-emerald-600 text-center mt-3 font-semibold">✓ Plan saved! Today's lesson was auto-filled.</p>
               )}
             </>
-          )}
+          ) : null}
         </main>
       ) : screen === 'tracker' ? (
         <>
