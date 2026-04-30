@@ -901,12 +901,12 @@ export default function App({ userId, isDemo = false, onSignOut }: Props) {
           <p className="text-xs text-slate-400 mt-0.5">Academic Tracker</p>
         </div>
         <div className="min-w-0">
-          <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none pb-0.5 sm:justify-end">
+          <div className="flex flex-wrap items-center gap-2 pb-0.5 sm:flex-nowrap sm:justify-end sm:overflow-x-auto sm:scrollbar-none">
             <button
               type="button"
               onClick={cycleNameFormat}
               title={`Name format: ${nameFormat}`}
-              className="shrink-0 text-xs font-semibold text-slate-500 hover:text-teal-700 bg-slate-100 hover:bg-teal-50 px-3 py-2 rounded-xl transition-colors"
+              className="text-xs font-semibold text-slate-500 hover:text-teal-700 bg-slate-100 hover:bg-teal-50 px-3 py-2 rounded-xl transition-colors"
             >
               {nameFormat === 'full' ? 'Full' : nameFormat === 'first' ? 'First' : 'Init'}
             </button>
@@ -914,7 +914,7 @@ export default function App({ userId, isDemo = false, onSignOut }: Props) {
               <button
                 type="button"
                 onClick={() => { setScreen('plan'); setSelectedStudentId(null); setSelectedLesson(null) }}
-                className={`shrink-0 rounded-xl px-3 py-2 text-sm font-semibold transition-colors ${screen === 'plan' ? 'bg-teal-50 text-teal-700' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700'}`}
+                className={`rounded-xl px-3 py-2 text-sm font-semibold transition-colors ${screen === 'plan' ? 'bg-teal-50 text-teal-700' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700'}`}
               >
                 Week Plan
               </button>
@@ -926,7 +926,7 @@ export default function App({ userId, isDemo = false, onSignOut }: Props) {
                 setSelectedStudentId(null)
                 setSelectedLesson(null)
               }}
-              className={`shrink-0 rounded-xl px-3 py-2 text-sm font-semibold transition-colors ${screen === 'history' ? 'bg-teal-50 text-teal-700' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700'}`}
+              className={`rounded-xl px-3 py-2 text-sm font-semibold transition-colors ${screen === 'history' ? 'bg-teal-50 text-teal-700' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700'}`}
             >
               {screen === 'history' ? 'Done' : 'History'}
             </button>
@@ -934,7 +934,7 @@ export default function App({ userId, isDemo = false, onSignOut }: Props) {
               <button
                 type="button"
                 onClick={() => setScreen(screen === 'roster' ? 'tracker' : 'roster')}
-                className={`shrink-0 rounded-xl px-3 py-2 text-sm font-semibold transition-colors ${screen === 'roster' ? 'bg-teal-50 text-teal-700' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700'}`}
+                className={`rounded-xl px-3 py-2 text-sm font-semibold transition-colors ${screen === 'roster' ? 'bg-teal-50 text-teal-700' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700'}`}
               >
                 {screen === 'roster' ? 'Done' : 'Roster'}
               </button>
@@ -942,17 +942,17 @@ export default function App({ userId, isDemo = false, onSignOut }: Props) {
             <button
               type="button"
               onClick={() => setScreen(screen === 'reports' ? 'tracker' : 'reports')}
-              className={`shrink-0 rounded-xl px-3 py-2 text-sm font-semibold transition-colors ${screen === 'reports' ? 'bg-teal-50 text-teal-700' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700'}`}
+              className={`rounded-xl px-3 py-2 text-sm font-semibold transition-colors ${screen === 'reports' ? 'bg-teal-50 text-teal-700' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700'}`}
             >
               {screen === 'reports' ? 'Done' : 'Reports'}
             </button>
             {(screen === 'plan') && (
-              <button type="button" onClick={() => setScreen('tracker')} className="shrink-0 rounded-xl px-3 py-2 text-sm font-semibold text-slate-500 hover:bg-slate-50 hover:text-slate-700">Done</button>
+              <button type="button" onClick={() => setScreen('tracker')} className="rounded-xl px-3 py-2 text-sm font-semibold text-slate-500 hover:bg-slate-50 hover:text-slate-700">Done</button>
             )}
             <button
               type="button"
               onClick={onSignOut}
-              className="shrink-0 rounded-xl px-3 py-2 text-xs font-semibold text-slate-300 hover:bg-slate-50 hover:text-slate-500"
+              className="rounded-xl px-3 py-2 text-xs font-semibold text-slate-300 hover:bg-slate-50 hover:text-slate-500"
             >
               {isDemo ? 'Exit' : 'Sign out'}
             </button>
@@ -1426,22 +1426,22 @@ export default function App({ userId, isDemo = false, onSignOut }: Props) {
           <div className="bg-white rounded-2xl shadow-sm px-4 py-4 mb-4 flex flex-col gap-3">
             <div>
               <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1.5">Class</p>
-              <div className="flex flex-wrap gap-1.5">
-                <button type="button" onClick={() => setReportClassId('all')} className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors ${reportClassId === 'all' ? 'bg-teal-500 text-white' : 'bg-slate-100 text-slate-500 hover:text-slate-700'}`}>All classes</button>
+              <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:gap-1.5">
+                <button type="button" onClick={() => setReportClassId('all')} className={`px-3 py-2 rounded-xl text-xs font-semibold transition-colors text-center ${reportClassId === 'all' ? 'bg-teal-500 text-white' : 'bg-slate-100 text-slate-500 hover:text-slate-700'}`}>All classes</button>
                 {classes.map(cls => (
-                  <button key={cls.id} type="button" onClick={() => setReportClassId(cls.id)} className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors ${reportClassId === cls.id ? 'bg-teal-500 text-white' : 'bg-slate-100 text-slate-500 hover:text-slate-700'}`}>{classLabel(cls)}</button>
+                  <button key={cls.id} type="button" onClick={() => setReportClassId(cls.id)} className={`px-3 py-2 rounded-xl text-xs font-semibold transition-colors text-center leading-snug ${reportClassId === cls.id ? 'bg-teal-500 text-white' : 'bg-slate-100 text-slate-500 hover:text-slate-700'}`}>{classLabel(cls)}</button>
                 ))}
               </div>
             </div>
             <div>
               <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1.5">Time period</p>
-              <div className="flex flex-wrap gap-1.5">
+              <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:gap-1.5">
                 {([['today', 'Today'], ['week', 'This week'], ['month', 'This month'], ['custom', 'Custom range'], ['all', 'All time']] as [ReportRange, string][]).map(([val, label]) => (
-                  <button key={val} type="button" onClick={() => setReportRange(val)} className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors ${reportRange === val ? 'bg-teal-500 text-white' : 'bg-slate-100 text-slate-500 hover:text-slate-700'}`}>{label}</button>
+                  <button key={val} type="button" onClick={() => setReportRange(val)} className={`px-3 py-2 rounded-xl text-xs font-semibold transition-colors text-center leading-snug ${reportRange === val ? 'bg-teal-500 text-white' : 'bg-slate-100 text-slate-500 hover:text-slate-700'}`}>{label}</button>
                 ))}
               </div>
               {reportRange === 'custom' && (
-                <div className="flex gap-2 mt-2">
+                <div className="flex flex-col gap-2 mt-2 sm:flex-row">
                   <div className="flex-1">
                     <p className="text-xs text-slate-400 mb-0.5">From</p>
                     <input type="date" value={reportCustomStart} onChange={e => setReportCustomStart(e.target.value)} className="w-full text-sm bg-slate-50 rounded-xl px-3 py-2 outline-none border border-slate-100 focus:border-teal-300" />
@@ -1522,10 +1522,10 @@ export default function App({ userId, isDemo = false, onSignOut }: Props) {
       {/* ── ROSTER SCREEN ── */}
       {screen === 'roster' && (
         <main className="flex-1 px-4 py-5 max-w-6xl mx-auto w-full">
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center justify-between gap-3 mb-4">
             <h2 className="text-base font-bold text-slate-800">Roster</h2>
             {classes.length < 6 && !rosterAddingClass && (
-              <button type="button" onClick={() => setRosterAddingClass(true)} className="text-xs font-semibold text-teal-600 hover:text-teal-700 bg-teal-50 px-3 py-1.5 rounded-xl">
+              <button type="button" onClick={() => setRosterAddingClass(true)} className="shrink-0 text-xs font-semibold text-teal-600 hover:text-teal-700 bg-teal-50 px-3 py-2 rounded-xl">
                 + Add class
               </button>
             )}
@@ -1580,12 +1580,12 @@ export default function App({ userId, isDemo = false, onSignOut }: Props) {
                       <button type="button" onClick={() => setRosterRenaming(null)} className="px-3 py-1.5 bg-slate-100 text-slate-500 text-xs font-semibold rounded-xl">Cancel</button>
                     </div>
                   ) : (
-                    <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-start justify-between gap-3 mb-3">
                       <div>
                         <p className="text-sm font-bold text-slate-800">{cls.name}</p>
                         <p className="text-xs text-slate-400">{cls.subject} · {students.length} student{students.length !== 1 ? 's' : ''}</p>
                       </div>
-                      <button type="button" onClick={() => { setRosterRenaming(cls.id); setRosterRenameValue(cls.name) }} className="text-xs text-slate-400 hover:text-teal-600">Rename</button>
+                      <button type="button" onClick={() => { setRosterRenaming(cls.id); setRosterRenameValue(cls.name) }} className="shrink-0 text-xs text-slate-400 hover:text-teal-600">Rename</button>
                     </div>
                   )}
 
@@ -1607,26 +1607,28 @@ export default function App({ userId, isDemo = false, onSignOut }: Props) {
                     ))}
                   </div>
 
-                  <div className="flex flex-wrap gap-2">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
                     <input
                       type="text"
                       value={rosterNewStudentName[cls.id] ?? ''}
                       onChange={e => setRosterNewStudentName(cur => ({ ...cur, [cls.id]: e.target.value }))}
                       onKeyDown={e => e.key === 'Enter' && rosterAddStudent(cls.id)}
                       placeholder="Add student…"
-                      className="min-w-[14rem] flex-1 text-sm bg-slate-50 rounded-xl px-3 py-2 outline-none border border-slate-100 focus:border-teal-300"
+                      className="w-full sm:min-w-[14rem] sm:flex-1 text-sm bg-slate-50 rounded-xl px-3 py-2 outline-none border border-slate-100 focus:border-teal-300"
                     />
-                    <button type="button" onClick={() => rosterAddStudent(cls.id)} disabled={!(rosterNewStudentName[cls.id] ?? '').trim() || rosterSaving} className="px-3 py-2 bg-teal-500 text-white text-sm font-semibold rounded-xl disabled:opacity-40">
-                      Add
-                    </button>
-                    <button type="button" onClick={() => { setRosterPasteClassId(cls.id); setRosterPasteText('') }} className="px-3 py-2 bg-slate-100 text-slate-600 text-sm font-semibold rounded-xl hover:bg-slate-200">
-                      Paste list
-                    </button>
-                    {classes.length > 1 && (
-                      <button type="button" onClick={() => { setRosterCopySourceClassId(cls.id); setRosterCopyTargetClassId('') }} className="px-3 py-2 bg-slate-100 text-slate-600 text-sm font-semibold rounded-xl hover:bg-slate-200">
-                        Copy roster
+                    <div className={`grid gap-2 ${classes.length > 1 ? 'grid-cols-3' : 'grid-cols-2'} sm:flex sm:flex-wrap`}>
+                      <button type="button" onClick={() => rosterAddStudent(cls.id)} disabled={!(rosterNewStudentName[cls.id] ?? '').trim() || rosterSaving} className="px-3 py-2 bg-teal-500 text-white text-sm font-semibold rounded-xl disabled:opacity-40">
+                        Add
                       </button>
-                    )}
+                      <button type="button" onClick={() => { setRosterPasteClassId(cls.id); setRosterPasteText('') }} className="px-3 py-2 bg-slate-100 text-slate-600 text-sm font-semibold rounded-xl hover:bg-slate-200">
+                        Paste list
+                      </button>
+                      {classes.length > 1 && (
+                        <button type="button" onClick={() => { setRosterCopySourceClassId(cls.id); setRosterCopyTargetClassId('') }} className="px-3 py-2 bg-slate-100 text-slate-600 text-sm font-semibold rounded-xl hover:bg-slate-200">
+                          Copy roster
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
               )
