@@ -1521,7 +1521,7 @@ export default function App({ userId, isDemo = false, onSignOut }: Props) {
 
       {/* ── ROSTER SCREEN ── */}
       {screen === 'roster' && (
-        <main className="flex-1 px-4 py-5 max-w-lg mx-auto w-full">
+        <main className="flex-1 px-4 py-5 max-w-6xl mx-auto w-full">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-base font-bold text-slate-800">Roster</h2>
             {classes.length < 6 && !rosterAddingClass && (
@@ -1560,7 +1560,7 @@ export default function App({ userId, isDemo = false, onSignOut }: Props) {
             </div>
           )}
 
-          <div className="flex flex-col gap-4">
+          <div className="grid gap-4 xl:grid-cols-2">
             {classes.map(cls => {
               const students = studentsByClass[cls.id] ?? []
               const isRenaming = rosterRenaming === cls.id
@@ -1589,13 +1589,13 @@ export default function App({ userId, isDemo = false, onSignOut }: Props) {
                     </div>
                   )}
 
-                  <div className="flex flex-col gap-1.5 mb-3">
-                    {students.length === 0 && <p className="text-xs text-slate-300 italic">No students yet.</p>}
+                  <div className="grid gap-2 mb-4 sm:grid-cols-2">
+                    {students.length === 0 && <p className="text-xs text-slate-300 italic sm:col-span-2">No students yet.</p>}
                     {students.map(s => (
-                      <div key={s.id} className="flex items-center justify-between py-1">
+                      <div key={s.id} className="flex min-h-10 items-center justify-between gap-3 rounded-xl bg-slate-50 px-3 py-2">
                         <span className="text-sm text-slate-700">{s.name}</span>
                         {rosterConfirmRemove?.studentId === s.id && rosterConfirmRemove?.classId === cls.id ? (
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2 shrink-0">
                             <span className="text-xs text-slate-400">Remove?</span>
                             <button type="button" onClick={() => rosterRemoveStudent(s.id, cls.id)} disabled={rosterSaving} className="text-xs font-semibold text-red-500 hover:text-red-700 disabled:opacity-40">Yes</button>
                             <button type="button" onClick={() => setRosterConfirmRemove(null)} className="text-xs text-slate-400 hover:text-slate-600">No</button>
@@ -1607,14 +1607,14 @@ export default function App({ userId, isDemo = false, onSignOut }: Props) {
                     ))}
                   </div>
 
-                  <div className="flex gap-2">
+                  <div className="flex flex-wrap gap-2">
                     <input
                       type="text"
                       value={rosterNewStudentName[cls.id] ?? ''}
                       onChange={e => setRosterNewStudentName(cur => ({ ...cur, [cls.id]: e.target.value }))}
                       onKeyDown={e => e.key === 'Enter' && rosterAddStudent(cls.id)}
                       placeholder="Add student…"
-                      className="flex-1 text-sm bg-slate-50 rounded-xl px-3 py-2 outline-none border border-slate-100 focus:border-teal-300"
+                      className="min-w-[14rem] flex-1 text-sm bg-slate-50 rounded-xl px-3 py-2 outline-none border border-slate-100 focus:border-teal-300"
                     />
                     <button type="button" onClick={() => rosterAddStudent(cls.id)} disabled={!(rosterNewStudentName[cls.id] ?? '').trim() || rosterSaving} className="px-3 py-2 bg-teal-500 text-white text-sm font-semibold rounded-xl disabled:opacity-40">
                       Add
