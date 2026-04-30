@@ -135,6 +135,10 @@ function App() {
   const [planError, setPlanError] = useState('')
   const [savedPlan, setSavedPlan] = useState<{ weekStart: string; schedule: Record<string, DayLesson> } | null>(null)
   const [expandedDay, setExpandedDay] = useState<string | null>(null)
+  const [editingDay, setEditingDay] = useState<string | null>(null)
+  const [editDraft, setEditDraft] = useState<DayLesson | null>(null)
+  const [swapSource, setSwapSource] = useState<string | null>(null)
+  const [planSaving, setPlanSaving] = useState(false)
   const [planSaved, setPlanSaved] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -309,6 +313,78 @@ function App() {
     }
   }
 
+  async function persistSchedule(schedule: Record<string, DayLesson>) {
+    setPlanSaving(true)
+    await supabase
+      .from('lesson_plans')
+      .upsert({ week_start: weekStart, schedule }, { onConflict: 'week_start' })
+    setSavedPlan({ weekStart, schedule })
+    const todayLesson = schedule[today]
+    if (todayLesson) setLessonInput(todayLesson.title)
+    setPlanSaving(false)
+  }
+
+  function startEdit(dateISO: string) {
+    const lesson = savedPlan?.schedule[dateISO]
+    setEditingDay(dateISO)
+    setEditDraft(lesson ? { ...lesson } : { title: '', subject: '', objective: '', activities: '', assessment: '' })
+    setExpandedDay(null)
+    setSwapSource(null)
+  }
+
+  async function saveEdit() {
+    if (!savedPlan || !editingDay || !editDraft) return
+    const schedule = { ...savedPlan.schedule }
+    if (editDraft.title.trim()) {
+      schedule[editingDay] = editDraft
+    } else {
+      delete schedule[editingDay]
+    }
+    setEditingDay(null)
+    setEditDraft(null)
+    await persistSchedule(schedule)
+  }
+
+  async function skipDay(dateISO: string) {
+    if (!savedPlan) return
+    const schedule = { ...savedPlan.schedule }
+    delete schedule[dateISO]
+    setExpandedDay(null)
+    await persistSchedule(schedule)
+  }
+
+  async function handleSwap(dateISO: string) {
+    if (!savedPlan) return
+    if (!swapSource) {
+      setSwapSource(dateISO)
+      setExpandedDay(null)
+      return
+    }
+    if (swapSource === dateISO) { setSwapSource(null); return }
+    const schedule = { ...savedPlan.schedule }
+    const a = schedule[swapSource]
+    const b = schedule[dateISO]
+    if (a) schedule[dateISO] = a; else delete schedule[dateISO]
+    if (b) schedule[swapSource] = b; else delete schedule[swapSource]
+    setSwapSource(null)
+    await persistSchedule(schedule)
+  }
+
+  async function copyToNext(dateISO: string) {
+    if (!savedPlan) return
+    const lesson = savedPlan.schedule[dateISO]
+    if (!lesson) return
+    const [y, m, d] = dateISO.split('-').map(Number)
+    const next = new Date(y, m - 1, d + 1)
+    // skip weekend
+    if (next.getDay() === 6) next.setDate(next.getDate() + 2)
+    if (next.getDay() === 0) next.setDate(next.getDate() + 1)
+    const nextISO = `${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, '0')}-${String(next.getDate()).padStart(2, '0')}`
+    const schedule = { ...savedPlan.schedule, [nextISO]: { ...lesson } }
+    setExpandedDay(null)
+    await persistSchedule(schedule)
+  }
+
   const students = classes[selectedClass]
   const filteredHistoryData = historyData.filter(r => r.class === historyClass)
   const studentHistory = selectedStudent
@@ -406,20 +482,64 @@ function App() {
 
           {savedPlan ? (
             <div className="bg-white rounded-2xl shadow-sm px-4 py-3 mb-5">
-              <p className="text-xs font-semibold text-teal-600 uppercase tracking-wide mb-2">This week's schedule</p>
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-xs font-semibold text-teal-600 uppercase tracking-wide">This week's schedule</p>
+                {swapSource && <p className="text-xs text-amber-600 font-semibold">Tap another day to swap ✕ <button type="button" onClick={() => setSwapSource(null)} className="underline">cancel</button></p>}
+                {planSaving && <p className="text-xs text-slate-400">Saving…</p>}
+              </div>
               {DAYS.map((dayName, i) => {
                 const dateISO = getDateForDayOffset(i)
                 const lesson = savedPlan.schedule[dateISO]
                 const isToday = dateISO === today
                 const isExpanded = expandedDay === dateISO
+                const isEditing = editingDay === dateISO
+                const isSwapSource = swapSource === dateISO
+
+                if (isEditing && editDraft) {
+                  return (
+                    <div key={dayName} className="border-b border-slate-50 last:border-0 py-3">
+                      <p className="text-xs font-semibold text-teal-600 mb-2">{dayName}</p>
+                      <div className="flex flex-col gap-2">
+                        {(['title', 'subject', 'objective', 'activities', 'assessment'] as (keyof DayLesson)[]).map(field => (
+                          <div key={field}>
+                            <p className="text-xs text-slate-400 uppercase tracking-wide mb-0.5">{field}</p>
+                            {field === 'objective' || field === 'activities' || field === 'assessment' ? (
+                              <textarea
+                                value={editDraft[field]}
+                                onChange={e => setEditDraft({ ...editDraft, [field]: e.target.value })}
+                                rows={2}
+                                className="w-full text-sm bg-slate-50 rounded-xl px-3 py-2 outline-none border border-slate-100 focus:border-teal-300 resize-none"
+                              />
+                            ) : (
+                              <input
+                                type="text"
+                                value={editDraft[field]}
+                                onChange={e => setEditDraft({ ...editDraft, [field]: e.target.value })}
+                                className="w-full text-sm bg-slate-50 rounded-xl px-3 py-2 outline-none border border-slate-100 focus:border-teal-300"
+                              />
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                      <div className="flex gap-2 mt-3">
+                        <button type="button" onClick={saveEdit} className="px-4 py-1.5 bg-teal-500 text-white text-xs font-semibold rounded-xl">Save</button>
+                        <button type="button" onClick={() => { setEditingDay(null); setEditDraft(null) }} className="px-4 py-1.5 bg-slate-100 text-slate-500 text-xs font-semibold rounded-xl">Cancel</button>
+                      </div>
+                    </div>
+                  )
+                }
+
                 return (
-                  <div key={dayName} className={`border-b border-slate-50 last:border-0 ${isToday ? 'bg-teal-50 -mx-4 px-4' : ''}`}>
+                  <div key={dayName} className={`border-b border-slate-50 last:border-0 ${isToday ? 'bg-teal-50 -mx-4 px-4' : ''} ${isSwapSource ? 'bg-amber-50 -mx-4 px-4' : ''}`}>
                     <button
                       type="button"
-                      onClick={() => lesson && setExpandedDay(isExpanded ? null : dateISO)}
+                      onClick={() => {
+                        if (swapSource) { handleSwap(dateISO); return }
+                        setExpandedDay(isExpanded ? null : dateISO)
+                      }}
                       className="flex items-start gap-3 py-2.5 w-full text-left"
                     >
-                      <span className={`text-xs font-semibold w-10 shrink-0 mt-0.5 ${isToday ? 'text-teal-600' : 'text-slate-400'}`}>{dayName.slice(0, 3)}</span>
+                      <span className={`text-xs font-semibold w-10 shrink-0 mt-0.5 ${isToday ? 'text-teal-600' : isSwapSource ? 'text-amber-500' : 'text-slate-400'}`}>{dayName.slice(0, 3)}</span>
                       <div className="flex-1 min-w-0">
                         {lesson ? (
                           <>
@@ -427,24 +547,34 @@ function App() {
                             <span className="text-xs text-slate-400 ml-2">{lesson.subject}</span>
                           </>
                         ) : (
-                          <span className="text-slate-300 italic text-sm">—</span>
+                          <span className="text-slate-300 italic text-sm">No lesson</span>
                         )}
                       </div>
-                      {lesson && <span className="text-slate-300 text-xs mt-0.5">{isExpanded ? '▲' : '▼'}</span>}
+                      {!swapSource && <span className="text-slate-300 text-xs mt-0.5">{isExpanded ? '▲' : '▼'}</span>}
                     </button>
-                    {isExpanded && lesson && (
-                      <div className="pb-3 pl-13 flex flex-col gap-2" style={{ paddingLeft: '3.25rem' }}>
-                        <div>
-                          <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-0.5">Objective</p>
-                          <p className="text-sm text-slate-700">{lesson.objective}</p>
-                        </div>
-                        <div>
-                          <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-0.5">Activities</p>
-                          <p className="text-sm text-slate-700">{lesson.activities}</p>
-                        </div>
-                        <div>
-                          <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-0.5">Assessment</p>
-                          <p className="text-sm text-slate-700">{lesson.assessment}</p>
+                    {isExpanded && !swapSource && (
+                      <div className="pb-3 flex flex-col gap-2" style={{ paddingLeft: '3.25rem' }}>
+                        {lesson && (
+                          <>
+                            <div>
+                              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-0.5">Objective</p>
+                              <p className="text-sm text-slate-700">{lesson.objective}</p>
+                            </div>
+                            <div>
+                              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-0.5">Activities</p>
+                              <p className="text-sm text-slate-700">{lesson.activities}</p>
+                            </div>
+                            <div>
+                              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-0.5">Assessment</p>
+                              <p className="text-sm text-slate-700">{lesson.assessment}</p>
+                            </div>
+                          </>
+                        )}
+                        <div className="flex flex-wrap gap-2 mt-1">
+                          <button type="button" onClick={() => startEdit(dateISO)} className="text-xs font-semibold px-3 py-1.5 bg-slate-100 text-slate-600 rounded-xl hover:bg-teal-50 hover:text-teal-700">✏️ Edit</button>
+                          <button type="button" onClick={() => handleSwap(dateISO)} className="text-xs font-semibold px-3 py-1.5 bg-slate-100 text-slate-600 rounded-xl hover:bg-amber-50 hover:text-amber-700">⇄ Swap day</button>
+                          {lesson && <button type="button" onClick={() => copyToNext(dateISO)} className="text-xs font-semibold px-3 py-1.5 bg-slate-100 text-slate-600 rounded-xl hover:bg-blue-50 hover:text-blue-700">→ Copy to next day</button>}
+                          {lesson && <button type="button" onClick={() => skipDay(dateISO)} className="text-xs font-semibold px-3 py-1.5 bg-slate-100 text-red-400 rounded-xl hover:bg-red-50">✕ Skip day</button>}
                         </div>
                       </div>
                     )}
@@ -453,7 +583,7 @@ function App() {
               })}
               <button
                 type="button"
-                onClick={() => setSavedPlan(null)}
+                onClick={() => { setSavedPlan(null); setExpandedDay(null); setEditingDay(null); setSwapSource(null) }}
                 className="text-xs text-slate-400 hover:text-slate-600 mt-3"
               >
                 Upload new plan
