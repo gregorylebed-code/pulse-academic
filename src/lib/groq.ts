@@ -7,7 +7,10 @@ async function groqChat(messages: { role: string; content: string }[]): Promise<
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${GROQ_API_KEY}` },
     body: JSON.stringify({ model: MODEL, messages, temperature: 0.3 }),
   })
-  if (!res.ok) throw new Error(`Groq error: ${res.status}`)
+  if (!res.ok) {
+    const body = await res.text().catch(() => '')
+    throw new Error(`Groq error ${res.status}: ${body.slice(0, 200)}`)
+  }
   const json = await res.json()
   return json.choices[0].message.content as string
 }

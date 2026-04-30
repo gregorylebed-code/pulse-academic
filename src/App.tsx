@@ -299,7 +299,8 @@ function App() {
       if (todayLesson) setLessonInput(todayLesson)
       setTimeout(() => setPlanSaved(false), 3000)
     } catch (err) {
-      setPlanError('Could not parse lesson plan. Try adding clearer day labels (Monday, Tuesday, etc.).')
+      const msg = err instanceof Error ? err.message : String(err)
+      setPlanError(`Error: ${msg}`)
       console.error(err)
     } finally {
       setPlanLoading(false)
