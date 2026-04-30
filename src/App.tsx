@@ -72,6 +72,34 @@ function getWeekStart(iso: string) {
   return `${mon.getFullYear()}-${String(mon.getMonth() + 1).padStart(2, '0')}-${String(mon.getDate()).padStart(2, '0')}`
 }
 
+type NameFormat = 'full' | 'first' | 'initials'
+
+function formatStudentName(fullName: string, format: NameFormat, classmates: string[]): string {
+  const parts = fullName.trim().split(/\s+/)
+  const first = parts[0]
+  const rest = parts.slice(1)
+  const lastInitial = rest.length > 0 ? rest[rest.length - 1][0].toUpperCase() + '.' : ''
+
+  if (format === 'full') return fullName
+
+  if (format === 'initials') {
+    const initials = parts.map(p => p[0].toUpperCase()).join('.')
+    return initials + '.'
+  }
+
+  // format === 'first' — show first name, add last initial only if another classmate shares the first name
+  const dupFirst = classmates.filter(n => n.trim().split(/\s+/)[0] === first && n !== fullName)
+  if (dupFirst.length === 0 || !lastInitial) return first
+  // Check if disambiguation by last initial is sufficient
+  const dupFirstAndLast = dupFirst.filter(n => {
+    const p = n.trim().split(/\s+/)
+    return p.length > 1 && p[p.length - 1][0].toUpperCase() + '.' === lastInitial
+  })
+  if (dupFirstAndLast.length === 0) return `${first} ${lastInitial}`
+  // Same first + last initial — add (2)
+  return `${first} ${lastInitial} (2)`
+}
+
 function formatDate(iso: string) {
   const [y, m, d] = iso.split('-').map(Number)
   return new Date(y, m - 1, d).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
@@ -151,6 +179,15 @@ function App() {
   const [activeSubject, setActiveSubject] = useState<string | null>(null)
   // Editing a past (or future) lesson — overrides today
   const [editingHistory, setEditingHistory] = useState<{ lesson: string; date: string; className: ClassName } | null>(null)
+
+  const [nameFormat, setNameFormat] = useState<NameFormat>(() =>
+    (localStorage.getItem('nameFormat') as NameFormat) ?? 'first'
+  )
+  function cycleNameFormat() {
+    const next: NameFormat = nameFormat === 'full' ? 'first' : nameFormat === 'first' ? 'initials' : 'full'
+    setNameFormat(next)
+    localStorage.setItem('nameFormat', next)
+  }
 
   // History state
   const [historyTab, setHistoryTab] = useState<HistoryTab>('student')
@@ -580,7 +617,15 @@ function App() {
               ))}
             </div>
           )}
-          <div className="flex gap-3">
+          <div className="flex gap-3 items-center">
+            <button
+              type="button"
+              onClick={cycleNameFormat}
+              title={`Name format: ${nameFormat}`}
+              className="text-xs font-semibold text-slate-400 hover:text-teal-600 bg-slate-100 hover:bg-teal-50 px-2.5 py-1 rounded-lg transition-colors"
+            >
+              {nameFormat === 'full' ? 'Full' : nameFormat === 'first' ? 'First' : 'Init'}
+            </button>
             <button
               type="button"
               onClick={() => { setScreen('plan'); setSelectedStudent(null); setSelectedLesson(null) }}
@@ -1052,8 +1097,8 @@ function App() {
                 {students.map((student) => {
                   const key = `${selectedClass}-${student}`
                   const status = studentStatuses[key] ?? 'got-it'
-                  const firstName = student.split(' ')[0]
-                  const initial = firstName[0].toUpperCase()
+                  const initial = student.trim()[0].toUpperCase()
+                  const displayName = formatStudentName(student, nameFormat, students)
                   return (
                     <button
                       key={key}
@@ -1066,7 +1111,7 @@ function App() {
                         {initial}
                       </div>
                       <span className="text-xs font-semibold text-slate-700 leading-tight text-center px-1">
-                        {firstName}
+                        {displayName}
                       </span>
                     </button>
                   )
@@ -1116,7 +1161,7 @@ function App() {
               selectedStudent ? (
                 <div>
                   <button type="button" onClick={() => setSelectedStudent(null)} className="text-sm text-teal-600 mb-3 flex items-center gap-1">← All students</button>
-                  <h2 className="text-base font-bold text-slate-800 mb-3">{selectedStudent}</h2>
+                  <h2 className="text-base font-bold text-slate-800 mb-3">{formatStudentName(selectedStudent, nameFormat, allStudents.filter(s => s.class === historyClass).map(s => s.name))}</h2>
                   {studentHistory.length === 0 ? (
                     <p className="text-slate-400 text-sm">No data yet.</p>
                   ) : (
@@ -1141,6 +1186,7 @@ function App() {
                     const rows = filteredHistoryData.filter(r => r.student === s.name)
                     const needsHelp = rows.filter(r => r.status === 'needs-help').length
                     const almost = rows.filter(r => r.status === 'almost').length
+                    const classmates = allStudents.filter(x => x.class === historyClass).map(x => x.name)
                     return (
                       <button
                         key={`${s.class}-${s.name}`}
@@ -1148,7 +1194,7 @@ function App() {
                         onClick={() => setSelectedStudent(s.name)}
                         className="bg-white rounded-2xl px-3 py-3 shadow-sm flex flex-col items-center text-center gap-1"
                       >
-                        <p className="text-sm font-semibold text-slate-700 leading-tight">{s.name}</p>
+                        <p className="text-sm font-semibold text-slate-700 leading-tight">{formatStudentName(s.name, nameFormat, classmates)}</p>
                         <p className="text-xs text-slate-400">{rows.length} lesson{rows.length !== 1 ? 's' : ''}</p>
                         <div className="flex flex-wrap justify-center gap-1 mt-0.5">
                           {needsHelp > 0 && <span className="text-xs font-semibold px-1.5 py-0.5 rounded-full bg-red-100 text-red-600">{needsHelp} ⚠</span>}
@@ -1183,7 +1229,7 @@ function App() {
                       {lessonDetail.sort((a, b) => a.student.localeCompare(b.student)).map((row, i) => (
                         <div key={i} className="bg-white rounded-2xl px-4 py-3 shadow-sm flex items-center justify-between">
                           <div>
-                            <p className="text-sm font-semibold text-slate-700">{row.student}</p>
+                            <p className="text-sm font-semibold text-slate-700">{formatStudentName(row.student, nameFormat, allStudents.filter(s => s.class === row.class as ClassName).map(s => s.name))}</p>
                             <p className="text-xs text-slate-400 mt-0.5">{row.class}</p>
                           </div>
                           <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${STATUS_PILL[row.status as Status]}`}>
