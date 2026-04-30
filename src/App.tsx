@@ -808,6 +808,13 @@ export default function App({ userId, isDemo = false, onSignOut }: Props) {
 
   // ── Derived data ──────────────────────────────────────────────────────────
 
+  const duplicateNames = new Set(
+    classes.map(c => c.name).filter((n, _, arr) => arr.filter(x => x === n).length > 1)
+  )
+  function classLabel(cls: AppClass) {
+    return duplicateNames.has(cls.name) ? `${cls.subject} · ${cls.name}` : cls.name
+  }
+
   const currentStudents = studentsByClass[selectedClassId] ?? []
   const historyStudents = studentsByClass[historyClassId] ?? []
 
@@ -875,7 +882,7 @@ export default function App({ userId, isDemo = false, onSignOut }: Props) {
                     selectedClassId === cls.id ? 'bg-teal-500 text-white shadow-sm' : 'text-slate-500 hover:text-slate-700'
                   }`}
                 >
-                  {cls.name}
+                  {classLabel(cls)}
                 </button>
               ))}
             </div>
@@ -1265,7 +1272,7 @@ export default function App({ userId, isDemo = false, onSignOut }: Props) {
                     onClick={() => { setHistoryClassId(cls.id); setSelectedStudentId(null); setSelectedLesson(null) }}
                     className={`px-4 py-1 rounded-lg text-xs font-semibold transition-all ${historyClassId === cls.id ? 'bg-teal-500 text-white shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
                   >
-                    {cls.name}
+                    {classLabel(cls)}
                   </button>
                 ))}
               </div>
@@ -1379,7 +1386,7 @@ export default function App({ userId, isDemo = false, onSignOut }: Props) {
               <div className="flex flex-wrap gap-1.5">
                 <button type="button" onClick={() => setReportClassId('all')} className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors ${reportClassId === 'all' ? 'bg-teal-500 text-white' : 'bg-slate-100 text-slate-500 hover:text-slate-700'}`}>All classes</button>
                 {classes.map(cls => (
-                  <button key={cls.id} type="button" onClick={() => setReportClassId(cls.id)} className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors ${reportClassId === cls.id ? 'bg-teal-500 text-white' : 'bg-slate-100 text-slate-500 hover:text-slate-700'}`}>{cls.name}</button>
+                  <button key={cls.id} type="button" onClick={() => setReportClassId(cls.id)} className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors ${reportClassId === cls.id ? 'bg-teal-500 text-white' : 'bg-slate-100 text-slate-500 hover:text-slate-700'}`}>{classLabel(cls)}</button>
                 ))}
               </div>
             </div>
