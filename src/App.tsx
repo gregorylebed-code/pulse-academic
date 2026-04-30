@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from './lib/supabase'
+import { parseLessonPlan, suggestExitTickets } from './lib/groq'
 
 type ClassName = 'AM' | 'PM'
 type Status = 'got-it' | 'almost' | 'needs-help'
-type Screen = 'tracker' | 'history'
+type Screen = 'tracker' | 'history' | 'plan'
 type HistoryTab = 'student' | 'lesson'
 
 const STATUS_CYCLE: Status[] = ['got-it', 'almost', 'needs-help']
@@ -62,12 +63,55 @@ function todayISO() {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
+function getWeekStart(iso: string) {
+  const [y, m, d] = iso.split('-').map(Number)
+  const date = new Date(y, m - 1, d)
+  const day = date.getDay()
+  const diff = day === 0 ? -6 : 1 - day
+  const mon = new Date(y, m - 1, d + diff)
+  return `${mon.getFullYear()}-${String(mon.getMonth() + 1).padStart(2, '0')}-${String(mon.getDate()).padStart(2, '0')}`
+}
+
 function formatDate(iso: string) {
   const [y, m, d] = iso.split('-').map(Number)
   return new Date(y, m - 1, d).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
 }
 
+function formatWeek(weekStart: string) {
+  const [y, m, d] = weekStart.split('-').map(Number)
+  const start = new Date(y, m - 1, d)
+  const end = new Date(y, m - 1, d + 4)
+  return `${start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} – ${end.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`
+}
+
 type HistoryRow = { class: string; student: string; lesson: string; date: string; status: string }
+
+async function extractTextFromFile(file: File): Promise<string> {
+  const ext = file.name.split('.').pop()?.toLowerCase()
+
+  if (ext === 'pdf') {
+    const { getDocument, GlobalWorkerOptions } = await import('pdfjs-dist')
+    GlobalWorkerOptions.workerSrc = new URL('pdfjs-dist/build/pdf.worker.min.mjs', import.meta.url).toString()
+    const arrayBuffer = await file.arrayBuffer()
+    const pdf = await getDocument({ data: arrayBuffer }).promise
+    let text = ''
+    for (let i = 1; i <= pdf.numPages; i++) {
+      const page = await pdf.getPage(i)
+      const content = await page.getTextContent()
+      text += content.items.map((item) => ('str' in item ? item.str : '')).join(' ') + '\n'
+    }
+    return text
+  }
+
+  if (ext === 'docx' || ext === 'doc') {
+    const mammoth = await import('mammoth')
+    const arrayBuffer = await file.arrayBuffer()
+    const result = await mammoth.extractRawText({ arrayBuffer })
+    return result.value
+  }
+
+  return await file.text()
+}
 
 function App() {
   const classNames = useMemo(() => Object.keys(classes) as ClassName[], [])
@@ -79,6 +123,20 @@ function App() {
   const [loading, setLoading] = useState(false)
   const [todaysLessons, setTodaysLessons] = useState<string[]>([])
 
+  // Exit ticket state
+  const [exitTickets, setExitTickets] = useState<string[]>([])
+  const [exitTicketLoading, setExitTicketLoading] = useState(false)
+  const [activeExitTicket, setActiveExitTicket] = useState<string | null>(null)
+  const [showExitTickets, setShowExitTickets] = useState(false)
+
+  // Lesson plan state
+  const [planText, setPlanText] = useState('')
+  const [planLoading, setPlanLoading] = useState(false)
+  const [planError, setPlanError] = useState('')
+  const [savedPlan, setSavedPlan] = useState<{ weekStart: string; schedule: Record<string, string> } | null>(null)
+  const [planSaved, setPlanSaved] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
   // History state
   const [historyTab, setHistoryTab] = useState<HistoryTab>('student')
   const [historyClass, setHistoryClass] = useState<ClassName>('AM')
@@ -88,9 +146,23 @@ function App() {
   const [selectedLesson, setSelectedLesson] = useState<{ lesson: string; date: string } | null>(null)
 
   const today = todayISO()
+  const weekStart = getWeekStart(today)
 
-  // On mount: check if there are lessons saved today and auto-restore
+  // On mount: load this week's lesson plan and restore today's active lesson
   useEffect(() => {
+    supabase
+      .from('lesson_plans')
+      .select('week_start, schedule')
+      .eq('week_start', weekStart)
+      .maybeSingle()
+      .then(({ data }: { data: { week_start: string; schedule: Record<string, string> } | null }) => {
+        if (data) {
+          setSavedPlan({ weekStart: data.week_start, schedule: data.schedule })
+          const todayLesson = data.schedule[today]
+          if (todayLesson) setLessonInput(todayLesson)
+        }
+      })
+
     setLoading(true)
     supabase
       .from('student_statuses')
@@ -107,7 +179,7 @@ function App() {
           setLoading(false)
         }
       })
-  }, [today])
+  }, [today, weekStart])
 
   // Load statuses whenever active lesson changes
   useEffect(() => {
@@ -144,11 +216,27 @@ function App() {
       })
   }, [screen])
 
+  // Load plan when navigating to plan screen
+  useEffect(() => {
+    if (screen !== 'plan') return
+    supabase
+      .from('lesson_plans')
+      .select('week_start, schedule')
+      .eq('week_start', weekStart)
+      .maybeSingle()
+      .then(({ data }: { data: { week_start: string; schedule: Record<string, string> } | null }) => {
+        if (data) setSavedPlan({ weekStart: data.week_start, schedule: data.schedule })
+      })
+  }, [screen, weekStart])
+
   function startLesson() {
     const lesson = lessonInput.trim()
     if (!lesson) return
     setActiveLesson(lesson)
     setStudentStatuses({})
+    setExitTickets([])
+    setActiveExitTicket(null)
+    setShowExitTickets(false)
   }
 
   function tap(key: string, className: ClassName, student: string) {
@@ -166,11 +254,60 @@ function App() {
     })
   }
 
+  async function handleSuggestExitTicket() {
+    if (!activeLesson) return
+    setExitTicketLoading(true)
+    setShowExitTickets(true)
+    setActiveExitTicket(null)
+    try {
+      const tickets = await suggestExitTickets(activeLesson)
+      setExitTickets(tickets)
+    } catch {
+      setExitTickets(['Could not load suggestions. Check your API key.'])
+    } finally {
+      setExitTicketLoading(false)
+    }
+  }
+
+  async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setPlanError('')
+    try {
+      const text = await extractTextFromFile(file)
+      setPlanText(text)
+    } catch {
+      setPlanError('Could not read file. Try copy/pasting the text instead.')
+    }
+    e.target.value = ''
+  }
+
+  async function handleSavePlan() {
+    if (!planText.trim()) return
+    setPlanLoading(true)
+    setPlanError('')
+    setPlanSaved(false)
+    try {
+      const schedule = await parseLessonPlan(planText, weekStart)
+      await supabase
+        .from('lesson_plans')
+        .upsert({ week_start: weekStart, schedule }, { onConflict: 'week_start' })
+      setSavedPlan({ weekStart, schedule })
+      setPlanText('')
+      setPlanSaved(true)
+      const todayLesson = schedule[today]
+      if (todayLesson) setLessonInput(todayLesson)
+      setTimeout(() => setPlanSaved(false), 3000)
+    } catch (err) {
+      setPlanError('Could not parse lesson plan. Try adding clearer day labels (Monday, Tuesday, etc.).')
+      console.error(err)
+    } finally {
+      setPlanLoading(false)
+    }
+  }
+
   const students = classes[selectedClass]
-
-  // History derived data
   const filteredHistoryData = historyData.filter(r => r.class === historyClass)
-
   const studentHistory = selectedStudent
     ? historyData.filter(r => r.student === selectedStudent).sort((a, b) => a.date.localeCompare(b.date))
     : []
@@ -186,11 +323,19 @@ function App() {
       const [date, lesson] = key.split('||')
       return { date, lesson, rows }
     }).sort((a, b) => b.date.localeCompare(a.date))
-  }, [historyData])
+  }, [filteredHistoryData])
 
   const lessonDetail = selectedLesson
     ? historyData.filter(r => r.lesson === selectedLesson.lesson && r.date === selectedLesson.date)
     : []
+
+  const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday']
+
+  function getDateForDayOffset(offset: number) {
+    const [y, m, d] = weekStart.split('-').map(Number)
+    const dt = new Date(y, m - 1, d + offset)
+    return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`
+  }
 
   return (
     <div className="min-h-screen flex flex-col" style={{ background: '#f5f0e8' }}>
@@ -219,21 +364,108 @@ function App() {
               ))}
             </div>
           )}
-          <button
-            type="button"
-            onClick={() => {
-              setScreen(screen === 'tracker' ? 'history' : 'tracker')
-              setSelectedStudent(null)
-              setSelectedLesson(null)
-            }}
-            className="text-sm font-semibold text-teal-600 hover:text-teal-800"
-          >
-            {screen === 'tracker' ? 'History' : 'Done'}
-          </button>
+          <div className="flex gap-3">
+            <button
+              type="button"
+              onClick={() => { setScreen('plan'); setSelectedStudent(null); setSelectedLesson(null) }}
+              className={`text-sm font-semibold ${screen === 'plan' ? 'text-teal-600' : 'text-slate-400 hover:text-slate-600'}`}
+            >
+              Week Plan
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setScreen(screen === 'history' ? 'tracker' : 'history')
+                setSelectedStudent(null)
+                setSelectedLesson(null)
+              }}
+              className={`text-sm font-semibold ${screen === 'history' ? 'text-teal-600' : 'text-slate-400 hover:text-slate-600'}`}
+            >
+              {screen === 'history' ? 'Done' : 'History'}
+            </button>
+            {screen === 'plan' && (
+              <button
+                type="button"
+                onClick={() => setScreen('tracker')}
+                className="text-sm font-semibold text-slate-400 hover:text-slate-600"
+              >
+                Done
+              </button>
+            )}
+          </div>
         </div>
       </header>
 
-      {screen === 'tracker' ? (
+      {screen === 'plan' ? (
+        <main className="flex-1 px-4 py-5 max-w-lg mx-auto w-full">
+          <h2 className="text-base font-bold text-slate-800 mb-1">Weekly Lesson Plan</h2>
+          <p className="text-xs text-slate-400 mb-4">{formatWeek(weekStart)}</p>
+
+          {savedPlan ? (
+            <div className="bg-white rounded-2xl shadow-sm px-4 py-3 mb-5">
+              <p className="text-xs font-semibold text-teal-600 uppercase tracking-wide mb-2">This week's schedule</p>
+              {DAYS.map((dayName, i) => {
+                const dateISO = getDateForDayOffset(i)
+                const lesson = savedPlan.schedule[dateISO]
+                return (
+                  <div key={dayName} className={`flex items-start gap-3 py-2 border-b border-slate-50 last:border-0 ${dateISO === today ? 'bg-teal-50 -mx-4 px-4 rounded-xl' : ''}`}>
+                    <span className={`text-xs font-semibold w-10 shrink-0 mt-0.5 ${dateISO === today ? 'text-teal-600' : 'text-slate-400'}`}>{dayName.slice(0, 3)}</span>
+                    <span className="text-sm text-slate-700">{lesson ?? <span className="text-slate-300 italic">—</span>}</span>
+                  </div>
+                )
+              })}
+              <button
+                type="button"
+                onClick={() => setSavedPlan(null)}
+                className="text-xs text-slate-400 hover:text-slate-600 mt-3"
+              >
+                Upload new plan
+              </button>
+            </div>
+          ) : (
+            <>
+              <div className="bg-white rounded-2xl shadow-sm px-4 py-4 mb-4">
+                <p className="text-sm font-semibold text-slate-700 mb-3">Upload or paste your lesson plan</p>
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="w-full border-2 border-dashed border-slate-200 rounded-xl py-3 text-sm text-slate-500 hover:border-teal-300 hover:text-teal-600 transition-colors mb-3"
+                >
+                  📎 Upload PDF, Word, or text file
+                </button>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".pdf,.doc,.docx,.txt"
+                  className="hidden"
+                  onChange={handleFileUpload}
+                />
+                <textarea
+                  value={planText}
+                  onChange={e => setPlanText(e.target.value)}
+                  placeholder={"Or paste your lesson plan here…\n\nMonday: Fractions — Adding Unlike Denominators\nTuesday: Fractions — Subtracting\nWednesday: Decimals intro\n..."}
+                  rows={8}
+                  className="w-full text-sm bg-slate-50 rounded-xl px-4 py-3 outline-none text-slate-700 placeholder-slate-300 resize-none border border-slate-100 focus:border-teal-300"
+                />
+                {planError && <p className="text-xs text-red-500 mt-2">{planError}</p>}
+              </div>
+
+              <button
+                type="button"
+                onClick={handleSavePlan}
+                disabled={!planText.trim() || planLoading}
+                className="w-full py-3 bg-teal-500 text-white text-sm font-semibold rounded-2xl disabled:opacity-40"
+              >
+                {planLoading ? 'Analyzing with AI…' : "Save this week's plan"}
+              </button>
+
+              {planSaved && (
+                <p className="text-xs text-emerald-600 text-center mt-3 font-semibold">✓ Plan saved! Today's lesson was auto-filled.</p>
+              )}
+            </>
+          )}
+        </main>
+      ) : screen === 'tracker' ? (
         <>
           {/* Lesson bar */}
           <div className="bg-white border-t border-slate-100 px-4 py-3 flex gap-2 items-center shadow-sm">
@@ -268,7 +500,15 @@ function App() {
                 </div>
                 <button
                   type="button"
-                  onClick={() => { setActiveLesson(''); setLessonInput('') }}
+                  onClick={handleSuggestExitTicket}
+                  disabled={exitTicketLoading}
+                  className="text-xs font-semibold text-amber-600 hover:text-amber-700 shrink-0 bg-amber-50 px-3 py-1.5 rounded-xl"
+                >
+                  {exitTicketLoading ? '…' : '💡 Exit Ticket'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setActiveLesson(''); setLessonInput(''); setExitTickets([]); setActiveExitTicket(null); setShowExitTickets(false) }}
                   className="text-xs text-slate-400 hover:text-slate-600 shrink-0"
                 >
                   Change
@@ -295,6 +535,48 @@ function App() {
               </>
             )}
           </div>
+
+          {/* Exit ticket panel */}
+          {showExitTickets && activeLesson && (
+            <div className="bg-amber-50 border-b border-amber-100 px-4 py-3">
+              {exitTicketLoading ? (
+                <p className="text-xs text-amber-500 text-center">Generating exit tickets…</p>
+              ) : activeExitTicket ? (
+                <div className="flex items-start gap-3">
+                  <div className="flex-1">
+                    <p className="text-xs font-semibold text-amber-700 mb-1">Active Exit Ticket</p>
+                    <p className="text-sm font-semibold text-slate-800">{activeExitTicket}</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => { setActiveExitTicket(null); setShowExitTickets(false) }}
+                    className="text-xs text-slate-400 hover:text-slate-600 shrink-0 mt-0.5"
+                  >
+                    ✕
+                  </button>
+                </div>
+              ) : (
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-xs font-semibold text-amber-700">Pick an exit ticket:</p>
+                    <button type="button" onClick={() => setShowExitTickets(false)} className="text-xs text-slate-400 hover:text-slate-600">✕</button>
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    {exitTickets.map((t, i) => (
+                      <button
+                        key={i}
+                        type="button"
+                        onClick={() => setActiveExitTicket(t)}
+                        className="text-left text-sm text-slate-700 bg-white rounded-xl px-3 py-2 shadow-sm hover:bg-amber-50 hover:text-amber-700"
+                      >
+                        {t}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Grid */}
           <main className="flex-1 px-4 py-5">
@@ -335,7 +617,6 @@ function App() {
       ) : (
         /* History screen */
         <main className="flex-1 flex flex-col">
-          {/* Tabs */}
           <div className="bg-white border-t border-slate-100 px-4 pt-3 pb-0 shadow-sm flex items-end justify-between">
             <div className="flex gap-0">
               {(['student', 'lesson'] as HistoryTab[]).map(tab => (
@@ -344,9 +625,7 @@ function App() {
                   type="button"
                   onClick={() => { setHistoryTab(tab); setSelectedStudent(null); setSelectedLesson(null) }}
                   className={`px-5 py-2 text-sm font-semibold border-b-2 transition-colors capitalize ${
-                    historyTab === tab
-                      ? 'border-teal-500 text-teal-600'
-                      : 'border-transparent text-slate-400 hover:text-slate-600'
+                    historyTab === tab ? 'border-teal-500 text-teal-600' : 'border-transparent text-slate-400 hover:text-slate-600'
                   }`}
                 >
                   By {tab}
@@ -360,9 +639,7 @@ function App() {
                   type="button"
                   onClick={() => { setHistoryClass(cn); setSelectedStudent(null); setSelectedLesson(null) }}
                   className={`px-4 py-1 rounded-lg text-xs font-semibold transition-all ${
-                    historyClass === cn
-                      ? 'bg-teal-500 text-white shadow-sm'
-                      : 'text-slate-500 hover:text-slate-700'
+                    historyClass === cn ? 'bg-teal-500 text-white shadow-sm' : 'text-slate-500 hover:text-slate-700'
                   }`}
                 >
                   {cn}
@@ -376,15 +653,8 @@ function App() {
               <div className="flex items-center justify-center h-40 text-slate-400 text-sm">Loading...</div>
             ) : historyTab === 'student' ? (
               selectedStudent ? (
-                /* Student detail */
                 <div>
-                  <button
-                    type="button"
-                    onClick={() => setSelectedStudent(null)}
-                    className="text-sm text-teal-600 mb-3 flex items-center gap-1"
-                  >
-                    ← All students
-                  </button>
+                  <button type="button" onClick={() => setSelectedStudent(null)} className="text-sm text-teal-600 mb-3 flex items-center gap-1">← All students</button>
                   <h2 className="text-base font-bold text-slate-800 mb-3">{selectedStudent}</h2>
                   {studentHistory.length === 0 ? (
                     <p className="text-slate-400 text-sm">No data yet.</p>
@@ -405,7 +675,6 @@ function App() {
                   )}
                 </div>
               ) : (
-                /* Student list */
                 <div className="flex flex-col gap-2">
                   {allStudents.filter(s => s.class === historyClass).map(s => {
                     const rows = filteredHistoryData.filter(r => r.student === s.name)
@@ -423,12 +692,8 @@ function App() {
                           <p className="text-xs text-slate-400 mt-0.5">{s.class} · {rows.length} lesson{rows.length !== 1 ? 's' : ''}</p>
                         </div>
                         <div className="flex gap-1.5">
-                          {needsHelp > 0 && (
-                            <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-red-100 text-red-600">{needsHelp} needs help</span>
-                          )}
-                          {almost > 0 && (
-                            <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-700">{almost} almost</span>
-                          )}
+                          {needsHelp > 0 && <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-red-100 text-red-600">{needsHelp} needs help</span>}
+                          {almost > 0 && <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-700">{almost} almost</span>}
                         </div>
                       </button>
                     )
@@ -436,17 +701,9 @@ function App() {
                 </div>
               )
             ) : (
-              /* By Lesson tab */
               selectedLesson ? (
-                /* Lesson detail */
                 <div>
-                  <button
-                    type="button"
-                    onClick={() => setSelectedLesson(null)}
-                    className="text-sm text-teal-600 mb-3 flex items-center gap-1"
-                  >
-                    ← All lessons
-                  </button>
+                  <button type="button" onClick={() => setSelectedLesson(null)} className="text-sm text-teal-600 mb-3 flex items-center gap-1">← All lessons</button>
                   <h2 className="text-base font-bold text-slate-800">{selectedLesson.lesson}</h2>
                   <p className="text-xs text-slate-400 mb-3">{formatDate(selectedLesson.date)}</p>
                   {lessonDetail.length === 0 ? (
@@ -468,7 +725,6 @@ function App() {
                   )}
                 </div>
               ) : (
-                /* Lesson list */
                 <div className="flex flex-col gap-2">
                   {lessonGroups.length === 0 ? (
                     <p className="text-slate-400 text-sm text-center mt-10">No history yet.</p>
