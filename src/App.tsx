@@ -891,7 +891,8 @@ export default function App({ userId, isDemo = false, onSignOut }: Props) {
   return (
     <div className="min-h-screen flex flex-col" style={{ background: '#f5f0e8' }}>
       {/* Header */}
-      <header className="bg-white px-5 py-4 flex items-center justify-between shadow-sm">
+      <header className="bg-white shadow-sm">
+        <div className="px-5 py-4 flex items-center justify-between">
         <div>
           <div className="flex items-center gap-2">
             <h1 className="text-xl font-bold text-slate-800 leading-none">Pulse</h1>
@@ -900,22 +901,6 @@ export default function App({ userId, isDemo = false, onSignOut }: Props) {
           <p className="text-xs text-slate-400 mt-0.5">Academic Tracker</p>
         </div>
         <div className="flex items-center gap-3">
-          {screen === 'tracker' && classes.length > 1 && (
-            <div className="flex gap-1 bg-slate-100 rounded-xl p-1">
-              {classes.map(cls => (
-                <button
-                  key={cls.id}
-                  type="button"
-                  onClick={() => { setSelectedClassId(cls.id); switchSubject(cls.subject) }}
-                  className={`px-4 py-1.5 rounded-lg text-sm font-semibold transition-all ${
-                    selectedClassId === cls.id ? 'bg-teal-500 text-white shadow-sm' : 'text-slate-500 hover:text-slate-700'
-                  }`}
-                >
-                  {classLabel(cls)}
-                </button>
-              ))}
-            </div>
-          )}
           <div className="flex gap-3 items-center">
             <button
               type="button"
@@ -973,6 +958,26 @@ export default function App({ userId, isDemo = false, onSignOut }: Props) {
             </button>
           </div>
         </div>
+        </div>
+        {/* Class tabs — scrollable strip */}
+        {screen === 'tracker' && classes.length > 1 && (
+          <div className="overflow-x-auto scrollbar-none border-t border-slate-100">
+            <div className="flex gap-1 p-2 w-max min-w-full">
+              {classes.map(cls => (
+                <button
+                  key={cls.id}
+                  type="button"
+                  onClick={() => { setSelectedClassId(cls.id); switchSubject(cls.subject) }}
+                  className={`px-4 py-1.5 rounded-lg text-sm font-semibold whitespace-nowrap transition-all ${
+                    selectedClassId === cls.id ? 'bg-teal-500 text-white shadow-sm' : 'bg-slate-100 text-slate-500 hover:text-slate-700'
+                  }`}
+                >
+                  {classLabel(cls)}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
       </header>
 
       {/* Subject tabs */}
