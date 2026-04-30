@@ -364,16 +364,16 @@ function App() {
     } else {
       const [y, m, d] = dateISO.split('-').map(Number)
       const skippedDate = new Date(y, m - 1, d)
-      // Only shift days strictly after the skipped date
-      const laterDates = Object.keys(schedule)
+      // Shift the skipped day AND all days after it forward by one school day
+      const datesToShift = Object.keys(schedule)
         .filter(k => {
           const [ky, km, kd] = k.split('-').map(Number)
-          return new Date(ky, km - 1, kd) > skippedDate
+          return new Date(ky, km - 1, kd) >= skippedDate
         })
         .sort()
       // Build the shifted map first, then apply all at once
       const shifted: Record<string, DayLesson> = {}
-      for (const k of laterDates) {
+      for (const k of datesToShift) {
         const [ky, km, kd] = k.split('-').map(Number)
         const next = new Date(ky, km - 1, kd + 1)
         if (next.getDay() === 6) next.setDate(next.getDate() + 2)
@@ -381,9 +381,8 @@ function App() {
         const nextISO = `${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, '0')}-${String(next.getDate()).padStart(2, '0')}`
         shifted[nextISO] = schedule[k]
       }
-      // Remove all original later keys, then write shifted positions
-      for (const k of laterDates) delete schedule[k]
-      delete schedule[dateISO]
+      // Remove all original keys (including skipped day), then write shifted positions
+      for (const k of datesToShift) delete schedule[k]
       Object.assign(schedule, shifted)
     }
     setExpandedDay(null)
