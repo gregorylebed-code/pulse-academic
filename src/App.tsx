@@ -916,26 +916,85 @@ function App() {
                   Change
                 </button>
               </div>
-            ) : (
-              <>
-                <input
-                  type="text"
-                  value={lessonInput}
-                  onChange={e => setLessonInput(e.target.value)}
-                  onKeyDown={e => e.key === 'Enter' && startLesson()}
-                  placeholder="What are you teaching today?"
-                  className="flex-1 text-sm bg-slate-100 rounded-xl px-4 py-2 outline-none text-slate-700 placeholder-slate-400"
-                />
-                <button
-                  type="button"
-                  onClick={startLesson}
-                  disabled={!lessonInput.trim()}
-                  className="px-4 py-2 bg-teal-500 text-white text-sm font-semibold rounded-xl disabled:opacity-40 shrink-0"
-                >
-                  Start
-                </button>
-              </>
-            )}
+            ) : (() => {
+              // Collect lessons from the plan for the active subject, sorted by date
+              const planLessons = activeSubject && savedPlan
+                ? Object.entries(savedPlan.schedule)
+                    .sort(([a], [b]) => a.localeCompare(b))
+                    .flatMap(([date, day]) => day[activeSubject] ? [{ date, title: day[activeSubject].title }] : [])
+                : []
+              return planLessons.length > 0 ? (
+                <div className="w-full">
+                  <p className="text-xs text-slate-400 mb-2">Pick a lesson:</p>
+                  <div className="flex flex-col gap-1.5">
+                    {planLessons.map(({ date, title }) => (
+                      <button
+                        key={date}
+                        type="button"
+                        onClick={() => {
+                          setLessonInput(title)
+                          setActiveLesson(title)
+                          setStudentStatuses({})
+                          setLoading(true)
+                          supabase
+                            .from('student_statuses')
+                            .select('class, student, status')
+                            .eq('lesson', title)
+                            .eq('date', date)
+                            .then(({ data }: { data: { class: string; student: string; status: string }[] | null }) => {
+                              const map: Record<string, Status> = {}
+                              if (data) for (const row of data) map[`${row.class}-${row.student}`] = row.status as Status
+                              setStudentStatuses(map)
+                              setLoading(false)
+                            })
+                        }}
+                        className="text-left px-4 py-2 bg-slate-100 rounded-xl text-sm font-semibold text-slate-700 hover:bg-teal-50 hover:text-teal-700 flex items-center justify-between"
+                      >
+                        <span>{title}</span>
+                        <span className="text-xs text-slate-400 font-normal ml-2 shrink-0">{formatDate(date)}</span>
+                      </button>
+                    ))}
+                    <div className="flex gap-2 mt-1">
+                      <input
+                        type="text"
+                        value={lessonInput}
+                        onChange={e => setLessonInput(e.target.value)}
+                        onKeyDown={e => e.key === 'Enter' && startLesson()}
+                        placeholder="Or type a custom lesson…"
+                        className="flex-1 text-sm bg-slate-50 rounded-xl px-3 py-2 outline-none text-slate-700 placeholder-slate-300 border border-slate-100 focus:border-teal-300"
+                      />
+                      <button
+                        type="button"
+                        onClick={startLesson}
+                        disabled={!lessonInput.trim()}
+                        className="px-4 py-2 bg-teal-500 text-white text-sm font-semibold rounded-xl disabled:opacity-40 shrink-0"
+                      >
+                        Start
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <input
+                    type="text"
+                    value={lessonInput}
+                    onChange={e => setLessonInput(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && startLesson()}
+                    placeholder="What are you teaching today?"
+                    className="flex-1 text-sm bg-slate-100 rounded-xl px-4 py-2 outline-none text-slate-700 placeholder-slate-400"
+                  />
+                  <button
+                    type="button"
+                    onClick={startLesson}
+                    disabled={!lessonInput.trim()}
+                    className="px-4 py-2 bg-teal-500 text-white text-sm font-semibold rounded-xl disabled:opacity-40 shrink-0"
+                  >
+                    Start
+                  </button>
+                </>
+              )
+            })()}
           </div>
 
           {/* Exit ticket panel */}
