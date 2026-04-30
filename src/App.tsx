@@ -814,6 +814,7 @@ export default function App({ userId, isDemo = false, onSignOut }: Props) {
 
   function switchSubject(subject: string) {
     setActiveSubject(subject)
+    setStudentStatuses({})
     setExitTickets([]); setActiveExitTicket(null); setShowExitTickets(false)
     const planTitle = savedPlan?.schedule[today]?.[subject]?.title
     if (planTitle) {
@@ -895,7 +896,7 @@ export default function App({ userId, isDemo = false, onSignOut }: Props) {
                 <button
                   key={cls.id}
                   type="button"
-                  onClick={() => { setSelectedClassId(cls.id); setActiveLesson(null); setStudentStatuses({}) }}
+                  onClick={() => { setSelectedClassId(cls.id); switchSubject(cls.subject) }}
                   className={`px-4 py-1.5 rounded-lg text-sm font-semibold transition-all ${
                     selectedClassId === cls.id ? 'bg-teal-500 text-white shadow-sm' : 'text-slate-500 hover:text-slate-700'
                   }`}
