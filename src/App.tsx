@@ -140,6 +140,7 @@ function App() {
   const [swapSource, setSwapSource] = useState<string | null>(null)
   const [skipConfirmDay, setSkipConfirmDay] = useState<string | null>(null)
   const [planSaving, setPlanSaving] = useState(false)
+  const [undoSnapshot, setUndoSnapshot] = useState<Record<string, DayLesson> | null>(null)
   const [planSaved, setPlanSaved] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -314,7 +315,8 @@ function App() {
     }
   }
 
-  async function persistSchedule(schedule: Record<string, DayLesson>) {
+  async function persistSchedule(schedule: Record<string, DayLesson>, snapshot?: Record<string, DayLesson>) {
+    if (snapshot !== undefined) setUndoSnapshot(snapshot)
     setPlanSaving(true)
     await supabase
       .from('lesson_plans')
@@ -323,6 +325,12 @@ function App() {
     const todayLesson = schedule[today]
     if (todayLesson) setLessonInput(todayLesson.title)
     setPlanSaving(false)
+  }
+
+  async function handleUndo() {
+    if (!undoSnapshot) return
+    await persistSchedule(undoSnapshot)
+    setUndoSnapshot(null)
   }
 
   function startEdit(dateISO: string) {
@@ -335,6 +343,7 @@ function App() {
 
   async function saveEdit() {
     if (!savedPlan || !editingDay || !editDraft) return
+    const snapshot = { ...savedPlan.schedule }
     const schedule = { ...savedPlan.schedule }
     if (editDraft.title.trim()) {
       schedule[editingDay] = editDraft
@@ -343,23 +352,25 @@ function App() {
     }
     setEditingDay(null)
     setEditDraft(null)
-    await persistSchedule(schedule)
+    await persistSchedule(schedule, snapshot)
   }
 
   async function skipDay(dateISO: string, pushBack: boolean) {
     if (!savedPlan) return
+    const snapshot = { ...savedPlan.schedule }
     const schedule = { ...savedPlan.schedule }
     if (!pushBack) {
       delete schedule[dateISO]
     } else {
-      // Remove this day and shift all later days in the week forward by one school day
       const [y, m, d] = dateISO.split('-').map(Number)
       const skippedDate = new Date(y, m - 1, d)
-      // Collect days after the skipped date, sorted ascending
+      // Only shift days strictly after the skipped date
       const laterDates = Object.keys(schedule)
-        .filter(k => new Date(...(k.split('-').map(Number) as [number, number, number])) > skippedDate)
+        .filter(k => {
+          const [ky, km, kd] = k.split('-').map(Number)
+          return new Date(ky, km - 1, kd) > skippedDate
+        })
         .sort()
-      // Shift each one forward by one calendar day (skip weekends)
       const shifted: Record<string, DayLesson> = {}
       for (const k of laterDates) {
         const [ky, km, kd] = k.split('-').map(Number)
@@ -375,7 +386,7 @@ function App() {
     }
     setExpandedDay(null)
     setSkipConfirmDay(null)
-    await persistSchedule(schedule)
+    await persistSchedule(schedule, snapshot)
   }
 
   async function handleSwap(dateISO: string) {
@@ -386,13 +397,14 @@ function App() {
       return
     }
     if (swapSource === dateISO) { setSwapSource(null); return }
+    const snapshot = { ...savedPlan.schedule }
     const schedule = { ...savedPlan.schedule }
     const a = schedule[swapSource]
     const b = schedule[dateISO]
     if (a) schedule[dateISO] = a; else delete schedule[dateISO]
     if (b) schedule[swapSource] = b; else delete schedule[swapSource]
     setSwapSource(null)
-    await persistSchedule(schedule)
+    await persistSchedule(schedule, snapshot)
   }
 
   async function copyToNext(dateISO: string) {
@@ -405,9 +417,10 @@ function App() {
     if (next.getDay() === 6) next.setDate(next.getDate() + 2)
     if (next.getDay() === 0) next.setDate(next.getDate() + 1)
     const nextISO = `${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, '0')}-${String(next.getDate()).padStart(2, '0')}`
+    const snapshot = { ...savedPlan.schedule }
     const schedule = { ...savedPlan.schedule, [nextISO]: { ...lesson } }
     setExpandedDay(null)
-    await persistSchedule(schedule)
+    await persistSchedule(schedule, snapshot)
   }
 
   const students = classes[selectedClass]
@@ -509,8 +522,13 @@ function App() {
             <div className="bg-white rounded-2xl shadow-sm px-4 py-3 mb-5">
               <div className="flex items-center justify-between mb-2">
                 <p className="text-xs font-semibold text-teal-600 uppercase tracking-wide">This week's schedule</p>
-                {swapSource && <p className="text-xs text-amber-600 font-semibold">Tap another day to swap ✕ <button type="button" onClick={() => setSwapSource(null)} className="underline">cancel</button></p>}
-                {planSaving && <p className="text-xs text-slate-400">Saving…</p>}
+                <div className="flex items-center gap-3">
+                  {undoSnapshot && !planSaving && (
+                    <button type="button" onClick={handleUndo} className="text-xs font-semibold text-slate-500 hover:text-teal-600 underline">↩ Undo</button>
+                  )}
+                  {swapSource && <p className="text-xs text-amber-600 font-semibold">Tap another day to swap — <button type="button" onClick={() => setSwapSource(null)} className="underline">cancel</button></p>}
+                  {planSaving && <p className="text-xs text-slate-400">Saving…</p>}
+                </div>
               </div>
               {DAYS.map((dayName, i) => {
                 const dateISO = getDateForDayOffset(i)
