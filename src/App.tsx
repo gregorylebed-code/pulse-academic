@@ -236,8 +236,18 @@ export default function App({ userId, isDemo = false, onSignOut }: Props) {
     const targetIds = new Set(targetStudents.map(s => s.id))
     for (const student of sourceStudents) {
       if (targetIds.has(student.id)) continue
-      await supabase.from('student_classes').insert({ student_id: student.id, class_id: rosterCopyTargetClassId })
-      setStudentsByClass(cur => ({ ...cur, [rosterCopyTargetClassId!]: [...(cur[rosterCopyTargetClassId!] ?? []), student] }))
+      const { error } = await supabase.from('student_classes').insert({ student_id: student.id, class_id: rosterCopyTargetClassId })
+      if (!error) setStudentsByClass(cur => ({ ...cur, [rosterCopyTargetClassId!]: [...(cur[rosterCopyTargetClassId!] ?? []), student] }))
+      else console.error('copy roster insert error:', error)
+    }
+    // Re-fetch target class students to confirm what actually saved
+    const { data: scRows } = await supabase
+      .from('student_classes')
+      .select('students(id, name)')
+      .eq('class_id', rosterCopyTargetClassId)
+    if (scRows) {
+      const refreshed = scRows.map(r => r.students as unknown as AppStudent).filter(Boolean)
+      setStudentsByClass(cur => ({ ...cur, [rosterCopyTargetClassId!]: refreshed }))
     }
     setRosterCopyTargetClassId(null)
     setRosterCopySourceClassId('')
