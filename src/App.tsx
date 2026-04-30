@@ -371,6 +371,7 @@ function App() {
           return new Date(ky, km - 1, kd) > skippedDate
         })
         .sort()
+      // Build the shifted map first, then apply all at once
       const shifted: Record<string, DayLesson> = {}
       for (const k of laterDates) {
         const [ky, km, kd] = k.split('-').map(Number)
@@ -379,8 +380,9 @@ function App() {
         if (next.getDay() === 0) next.setDate(next.getDate() + 1)
         const nextISO = `${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, '0')}-${String(next.getDate()).padStart(2, '0')}`
         shifted[nextISO] = schedule[k]
-        delete schedule[k]
       }
+      // Remove all original later keys, then write shifted positions
+      for (const k of laterDates) delete schedule[k]
       delete schedule[dateISO]
       Object.assign(schedule, shifted)
     }
