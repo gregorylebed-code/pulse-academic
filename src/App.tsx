@@ -889,7 +889,7 @@ export default function App({ userId, isDemo = false, onSignOut }: Props) {
   }
 
   return (
-    <div className="min-h-screen flex flex-col" style={{ background: '#f5f0e8' }}>
+    <div className="min-h-screen flex flex-col overflow-x-hidden" style={{ background: '#f5f0e8' }}>
       {/* Header */}
       <header className="bg-white/95 shadow-sm shadow-slate-200/70 backdrop-blur">
         <div className="px-4 py-4 sm:px-5 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -961,14 +961,14 @@ export default function App({ userId, isDemo = false, onSignOut }: Props) {
         </div>
         {/* Class tabs — scrollable strip */}
         {screen === 'tracker' && classes.length > 1 && (
-          <div className="overflow-x-auto scrollbar-none border-t border-slate-100">
+          <div className="max-w-full overflow-x-auto scrollbar-none border-t border-slate-100">
             <div className="flex gap-2 p-3 w-max min-w-full">
               {classes.map(cls => (
                 <button
                   key={cls.id}
                   type="button"
                   onClick={() => { setSelectedClassId(cls.id); switchSubject(cls.subject) }}
-                  className={`px-4 py-2 rounded-2xl text-sm font-semibold whitespace-nowrap transition-all ${
+                  className={`max-w-[12.5rem] truncate px-3 py-2 rounded-2xl text-xs sm:px-4 sm:text-sm font-semibold whitespace-nowrap transition-all ${
                     selectedClassId === cls.id ? 'bg-teal-500 text-white shadow-md shadow-teal-500/20' : 'bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-800'
                   }`}
                 >
@@ -1297,7 +1297,7 @@ export default function App({ userId, isDemo = false, onSignOut }: Props) {
       ) : (
         /* ── HISTORY SCREEN ── */
         <main className="flex-1 flex flex-col">
-          <div className="bg-white border-t border-slate-100 px-4 pt-3 pb-0 shadow-sm flex items-end justify-between">
+          <div className="bg-white border-t border-slate-100 px-4 pt-3 pb-0 shadow-sm flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
             <div className="flex gap-0">
               {(['student', 'lesson'] as HistoryTab[]).map(tab => (
                 <button key={tab} type="button"
@@ -1309,15 +1309,17 @@ export default function App({ userId, isDemo = false, onSignOut }: Props) {
               ))}
             </div>
             {classes.length > 1 && (
-              <div className="flex gap-1 bg-slate-100 rounded-xl p-1 mb-2">
-                {classes.map(cls => (
-                  <button key={cls.id} type="button"
-                    onClick={() => { setHistoryClassId(cls.id); setSelectedStudentId(null); setSelectedLesson(null) }}
-                    className={`px-4 py-1 rounded-lg text-xs font-semibold transition-all ${historyClassId === cls.id ? 'bg-teal-500 text-white shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-                  >
-                    {classLabel(cls)}
-                  </button>
-                ))}
+              <div className="w-full overflow-x-auto scrollbar-none pb-2 sm:w-auto sm:pb-2">
+                <div className="flex w-max gap-1 rounded-xl bg-slate-100 p-1">
+                  {classes.map(cls => (
+                    <button key={cls.id} type="button"
+                      onClick={() => { setHistoryClassId(cls.id); setSelectedStudentId(null); setSelectedLesson(null) }}
+                      className={`max-w-[10.5rem] truncate whitespace-nowrap px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${historyClassId === cls.id ? 'bg-teal-500 text-white shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                    >
+                      {classLabel(cls)}
+                    </button>
+                  ))}
+                </div>
               </div>
             )}
           </div>
