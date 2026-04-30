@@ -891,22 +891,22 @@ export default function App({ userId, isDemo = false, onSignOut }: Props) {
   return (
     <div className="min-h-screen flex flex-col" style={{ background: '#f5f0e8' }}>
       {/* Header */}
-      <header className="bg-white shadow-sm">
-        <div className="px-5 py-4 flex items-center justify-between">
-        <div>
+      <header className="bg-white/95 shadow-sm shadow-slate-200/70 backdrop-blur">
+        <div className="px-4 py-4 sm:px-5 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
           <div className="flex items-center gap-2">
             <h1 className="text-xl font-bold text-slate-800 leading-none">Pulse</h1>
             {isDemo && <span className="text-xs font-semibold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">Demo</span>}
           </div>
           <p className="text-xs text-slate-400 mt-0.5">Academic Tracker</p>
         </div>
-        <div className="flex items-center gap-3">
-          <div className="flex gap-3 items-center">
+        <div className="min-w-0">
+          <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none pb-0.5 sm:justify-end">
             <button
               type="button"
               onClick={cycleNameFormat}
               title={`Name format: ${nameFormat}`}
-              className="text-xs font-semibold text-slate-400 hover:text-teal-600 bg-slate-100 hover:bg-teal-50 px-2.5 py-1 rounded-lg transition-colors"
+              className="shrink-0 text-xs font-semibold text-slate-500 hover:text-teal-700 bg-slate-100 hover:bg-teal-50 px-3 py-2 rounded-xl transition-colors"
             >
               {nameFormat === 'full' ? 'Full' : nameFormat === 'first' ? 'First' : 'Init'}
             </button>
@@ -914,7 +914,7 @@ export default function App({ userId, isDemo = false, onSignOut }: Props) {
               <button
                 type="button"
                 onClick={() => { setScreen('plan'); setSelectedStudentId(null); setSelectedLesson(null) }}
-                className={`text-sm font-semibold ${screen === 'plan' ? 'text-teal-600' : 'text-slate-400 hover:text-slate-600'}`}
+                className={`shrink-0 rounded-xl px-3 py-2 text-sm font-semibold transition-colors ${screen === 'plan' ? 'bg-teal-50 text-teal-700' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700'}`}
               >
                 Week Plan
               </button>
@@ -926,7 +926,7 @@ export default function App({ userId, isDemo = false, onSignOut }: Props) {
                 setSelectedStudentId(null)
                 setSelectedLesson(null)
               }}
-              className={`text-sm font-semibold ${screen === 'history' ? 'text-teal-600' : 'text-slate-400 hover:text-slate-600'}`}
+              className={`shrink-0 rounded-xl px-3 py-2 text-sm font-semibold transition-colors ${screen === 'history' ? 'bg-teal-50 text-teal-700' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700'}`}
             >
               {screen === 'history' ? 'Done' : 'History'}
             </button>
@@ -934,7 +934,7 @@ export default function App({ userId, isDemo = false, onSignOut }: Props) {
               <button
                 type="button"
                 onClick={() => setScreen(screen === 'roster' ? 'tracker' : 'roster')}
-                className={`text-sm font-semibold ${screen === 'roster' ? 'text-teal-600' : 'text-slate-400 hover:text-slate-600'}`}
+                className={`shrink-0 rounded-xl px-3 py-2 text-sm font-semibold transition-colors ${screen === 'roster' ? 'bg-teal-50 text-teal-700' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700'}`}
               >
                 {screen === 'roster' ? 'Done' : 'Roster'}
               </button>
@@ -942,17 +942,17 @@ export default function App({ userId, isDemo = false, onSignOut }: Props) {
             <button
               type="button"
               onClick={() => setScreen(screen === 'reports' ? 'tracker' : 'reports')}
-              className={`text-sm font-semibold ${screen === 'reports' ? 'text-teal-600' : 'text-slate-400 hover:text-slate-600'}`}
+              className={`shrink-0 rounded-xl px-3 py-2 text-sm font-semibold transition-colors ${screen === 'reports' ? 'bg-teal-50 text-teal-700' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700'}`}
             >
               {screen === 'reports' ? 'Done' : 'Reports'}
             </button>
             {(screen === 'plan') && (
-              <button type="button" onClick={() => setScreen('tracker')} className="text-sm font-semibold text-slate-400 hover:text-slate-600">Done</button>
+              <button type="button" onClick={() => setScreen('tracker')} className="shrink-0 rounded-xl px-3 py-2 text-sm font-semibold text-slate-500 hover:bg-slate-50 hover:text-slate-700">Done</button>
             )}
             <button
               type="button"
               onClick={onSignOut}
-              className="text-xs text-slate-300 hover:text-slate-500"
+              className="shrink-0 rounded-xl px-3 py-2 text-xs font-semibold text-slate-300 hover:bg-slate-50 hover:text-slate-500"
             >
               {isDemo ? 'Exit' : 'Sign out'}
             </button>
@@ -962,14 +962,14 @@ export default function App({ userId, isDemo = false, onSignOut }: Props) {
         {/* Class tabs — scrollable strip */}
         {screen === 'tracker' && classes.length > 1 && (
           <div className="overflow-x-auto scrollbar-none border-t border-slate-100">
-            <div className="flex gap-1 p-2 w-max min-w-full">
+            <div className="flex gap-2 p-3 w-max min-w-full">
               {classes.map(cls => (
                 <button
                   key={cls.id}
                   type="button"
                   onClick={() => { setSelectedClassId(cls.id); switchSubject(cls.subject) }}
-                  className={`px-4 py-1.5 rounded-lg text-sm font-semibold whitespace-nowrap transition-all ${
-                    selectedClassId === cls.id ? 'bg-teal-500 text-white shadow-sm' : 'bg-slate-100 text-slate-500 hover:text-slate-700'
+                  className={`px-4 py-2 rounded-2xl text-sm font-semibold whitespace-nowrap transition-all ${
+                    selectedClassId === cls.id ? 'bg-teal-500 text-white shadow-md shadow-teal-500/20' : 'bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-800'
                   }`}
                 >
                   {classLabel(cls)}
@@ -982,19 +982,21 @@ export default function App({ userId, isDemo = false, onSignOut }: Props) {
 
       {/* Subject tabs */}
       {screen === 'tracker' && savedPlan && savedPlan.trackedSubjects.length > 1 && (
-        <div className="bg-white border-b border-slate-100 px-4 flex gap-0">
+        <div className="bg-white border-b border-slate-100 px-4 overflow-x-auto scrollbar-none">
+          <div className="flex gap-6 min-w-max">
           {savedPlan.trackedSubjects.map(subj => (
             <button
               key={subj}
               type="button"
               onClick={() => switchSubject(subj)}
-              className={`px-5 py-2.5 text-sm font-semibold border-b-2 transition-colors ${
+              className={`px-0 py-3 text-sm font-semibold border-b-2 transition-colors ${
                 activeSubject === subj ? 'border-teal-500 text-teal-600' : 'border-transparent text-slate-400 hover:text-slate-600'
               }`}
             >
               {subj}
             </button>
           ))}
+          </div>
         </div>
       )}
 
@@ -1157,7 +1159,7 @@ export default function App({ userId, isDemo = false, onSignOut }: Props) {
       ) : screen === 'tracker' ? (
         <>
           {/* Lesson bar */}
-          <div className="bg-white border-t border-slate-100 px-4 py-3 flex gap-2 items-center shadow-sm">
+          <div className="bg-white border-t border-slate-100 px-4 py-4 shadow-sm shadow-slate-200/70">
             {activeLesson ? (
               <div className="flex items-center gap-3 w-full">
                 <div className="flex-1 min-w-0">
@@ -1180,43 +1182,45 @@ export default function App({ userId, isDemo = false, onSignOut }: Props) {
                     .flatMap(([date, day]) => day[activeSubject] ? [{ date, title: day[activeSubject].title }] : [])
                 : []
               return planLessons.length > 0 ? (
-                <div className="w-full">
-                  <p className="text-xs text-slate-400 mb-2">Pick a lesson:</p>
-                  <div className="flex flex-col gap-1.5">
+                <div className="w-full max-w-2xl mx-auto">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 mb-3">Pick a lesson</p>
+                  <div className="flex flex-col gap-2">
                     {planLessons.map(({ date, title }) => (
                       <button key={date} type="button"
                         onClick={() => { setLessonInput(title); startLessonByTitle(title, date) }}
-                        className="text-left px-4 py-2 bg-slate-100 rounded-xl text-sm font-semibold text-slate-700 hover:bg-teal-50 hover:text-teal-700 flex items-center justify-between"
+                        className="group text-left px-4 py-3 bg-slate-50 rounded-2xl text-sm font-semibold text-slate-800 hover:bg-teal-50 hover:text-teal-800 border border-slate-100 hover:border-teal-100 flex items-center justify-between gap-4 transition-colors"
                       >
-                        <span>{title}</span>
-                        <span className="text-xs text-slate-400 font-normal ml-2 shrink-0">{formatDate(date)}</span>
+                        <span className="leading-snug">{title}</span>
+                        <span className="text-xs text-slate-400 font-semibold shrink-0 group-hover:text-teal-600">{formatDate(date)}</span>
                       </button>
                     ))}
-                    <div className="flex gap-2 mt-1">
-                      <input type="text" value={lessonInput} onChange={e => setLessonInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && startLesson()} placeholder="Or type a custom lesson…" className="flex-1 text-sm bg-slate-50 rounded-xl px-3 py-2 outline-none text-slate-700 placeholder-slate-300 border border-slate-100 focus:border-teal-300" />
-                      <button type="button" onClick={startLesson} disabled={!lessonInput.trim()} className="px-4 py-2 bg-teal-500 text-white text-sm font-semibold rounded-xl disabled:opacity-40 shrink-0">Start</button>
+                    <div className="flex gap-2 mt-2">
+                      <input type="text" value={lessonInput} onChange={e => setLessonInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && startLesson()} placeholder="Or type a custom lesson…" className="flex-1 min-w-0 text-sm bg-white rounded-2xl px-4 py-3 outline-none text-slate-700 placeholder-slate-300 border border-slate-100 focus:border-teal-300 shadow-sm" />
+                      <button type="button" onClick={startLesson} disabled={!lessonInput.trim()} className="px-5 py-3 bg-teal-500 text-white text-sm font-semibold rounded-2xl disabled:opacity-40 shrink-0 shadow-sm shadow-teal-500/20">Start</button>
                     </div>
                   </div>
                 </div>
               ) : isDemo ? (
-                <div className="w-full">
-                  <p className="text-xs text-slate-400 mb-2">Pick a demo lesson:</p>
-                  <div className="flex flex-col gap-1.5">
+                <div className="w-full max-w-2xl mx-auto">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 mb-3">Pick a demo lesson</p>
+                  <div className="flex flex-col gap-2">
                     {DEMO_LESSONS.filter(l => l.class_id === selectedClassId).map(l => (
                       <button key={l.id} type="button"
                         onClick={() => { setLessonInput(l.title); startLessonByTitle(l.title, l.date) }}
-                        className="text-left px-4 py-2 bg-slate-100 rounded-xl text-sm font-semibold text-slate-700 hover:bg-teal-50 hover:text-teal-700 flex items-center justify-between"
+                        className="group text-left px-4 py-3 bg-slate-50 rounded-2xl text-sm font-semibold text-slate-800 hover:bg-teal-50 hover:text-teal-800 border border-slate-100 hover:border-teal-100 flex items-center justify-between gap-4 transition-colors"
                       >
-                        <span>{l.title}</span>
-                        <span className="text-xs text-slate-400 font-normal ml-2 shrink-0">{formatDate(l.date)}</span>
+                        <span className="leading-snug">{l.title}</span>
+                        <span className="text-xs text-slate-400 font-semibold shrink-0 group-hover:text-teal-600">{formatDate(l.date)}</span>
                       </button>
                     ))}
                   </div>
                 </div>
               ) : (
                 <>
-                  <input type="text" value={lessonInput} onChange={e => setLessonInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && startLesson()} placeholder="What are you teaching today?" className="flex-1 text-sm bg-slate-100 rounded-xl px-4 py-2 outline-none text-slate-700 placeholder-slate-400" />
-                  <button type="button" onClick={startLesson} disabled={!lessonInput.trim()} className="px-4 py-2 bg-teal-500 text-white text-sm font-semibold rounded-xl disabled:opacity-40 shrink-0">Start</button>
+                  <div className="flex w-full max-w-2xl mx-auto gap-2">
+                    <input type="text" value={lessonInput} onChange={e => setLessonInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && startLesson()} placeholder="What are you teaching today?" className="flex-1 min-w-0 text-sm bg-slate-50 rounded-2xl px-4 py-3 outline-none text-slate-700 placeholder-slate-400 border border-slate-100 focus:border-teal-300" />
+                    <button type="button" onClick={startLesson} disabled={!lessonInput.trim()} className="px-5 py-3 bg-teal-500 text-white text-sm font-semibold rounded-2xl disabled:opacity-40 shrink-0 shadow-sm shadow-teal-500/20">Start</button>
+                  </div>
                 </>
               )
             })()}
@@ -1252,10 +1256,15 @@ export default function App({ userId, isDemo = false, onSignOut }: Props) {
           )}
 
           {/* Student grid */}
-          <main className="flex-1 px-4 py-5">
+          <main className="flex-1 px-4 py-6">
             {!activeLesson ? (
-              <div className="flex items-center justify-center h-40 text-slate-400 text-sm">
-                {currentStudents.length === 0 ? 'No students in this class yet.' : 'Select a lesson to begin.'}
+              <div className="mx-auto mt-10 flex min-h-40 max-w-sm flex-col items-center justify-center rounded-3xl border border-dashed border-slate-200 bg-white/45 px-6 py-10 text-center">
+                <p className="text-sm font-semibold text-slate-500">
+                  {currentStudents.length === 0 ? 'No students in this class yet.' : 'Select a lesson to begin.'}
+                </p>
+                <p className="mt-1 text-xs text-slate-400">
+                  {currentStudents.length === 0 ? 'Add students from the roster when you are ready.' : 'Your class check-in grid will appear here.'}
+                </p>
               </div>
             ) : loading ? (
               <div className="flex items-center justify-center h-40 text-slate-400 text-sm">Loading…</div>
