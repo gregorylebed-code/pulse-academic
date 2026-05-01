@@ -1124,7 +1124,7 @@ async function handleSuggestExitTicket() {
       })() && (
         <div className="bg-white border-b border-slate-100 px-4 overflow-x-auto scrollbar-none">
           <div className="flex gap-6 min-w-max">
-          {savedPlan.trackedSubjects.map(subj => (
+          {savedPlan?.trackedSubjects.map(subj => (
             <button
               key={subj}
               type="button"
