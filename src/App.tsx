@@ -665,7 +665,7 @@ export default function App({ userId, isDemo = false, onSignOut }: Props) {
       const tickets = await suggestExitTickets(todayPlan ?? activeLesson.title)
       setExitTickets(tickets)
     } catch {
-      setExitTickets(['Could not load suggestions. Check your API key.'])
+      setExitTickets([{ title: 'Could not load suggestions', description: 'Check your API key.' }])
     } finally {
       setExitTicketLoading(false)
     }
