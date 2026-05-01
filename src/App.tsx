@@ -655,18 +655,38 @@ export default function App({ userId, isDemo = false, onSignOut }: Props) {
 
   // ── Exit tickets ──────────────────────────────────────────────────────────
 
-  async function handleSuggestExitTicket() {
-    if (!activeLesson) return
-    setExitTicketLoading(true)
-    setShowExitTickets(true)
-    setActiveExitTicket(null)
-    try {
-      const todayPlan = activeSubject ? savedPlan?.schedule[today]?.[activeSubject] : undefined
-      const tickets = await suggestExitTickets(todayPlan ?? activeLesson.title)
+async function handleSuggestExitTicket() {
+  if (!activeLesson) return
+  setExitTicketLoading(true)
+  setShowExitTickets(true)
+  setActiveExitTicket(null)
+  try {
+      const lessonDate = activeLesson.date || today
+      const dayPlan = savedPlan?.schedule[lessonDate]
+      const byActiveSubject = activeSubject ? dayPlan?.[activeSubject] : undefined
+      const byTitle = dayPlan
+        ? Object.values(dayPlan).find(
+            l => l.title.trim().toLowerCase() === activeLesson.title.trim().toLowerCase()
+          )
+        : undefined
+      const lessonContext =
+        byActiveSubject ??
+        byTitle ??
+        (activeLesson.objective
+          ? {
+              title: activeLesson.title,
+              subject: activeSubject ?? 'General',
+              objective: activeLesson.objective,
+              activities: '',
+              assessment: '',
+            }
+          : activeLesson.title)
+
+      const tickets = await suggestExitTickets(lessonContext)
       setExitTickets(tickets)
-    } catch {
+  } catch {
       setExitTickets([{ title: 'Could not load suggestions', description: 'Check your API key.' }])
-    } finally {
+  } finally {
       setExitTicketLoading(false)
     }
   }

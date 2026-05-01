@@ -79,15 +79,25 @@ export async function suggestExitTickets(lesson: DayLesson | string): Promise<Ex
     ? `Lesson: "${lesson}"`
     : `Lesson: "${lesson.title}"\nObjective: ${lesson.objective}\nActivities: ${lesson.activities}\nAssessment: ${lesson.assessment}`
 
-  const prompt = `You are a helpful assistant for elementary/middle school teachers. Suggest 3 exit ticket ideas based on this lesson:
+  const prompt = `You are an expert instructional coach for elementary/middle school teachers. Suggest 3 high-quality exit tickets based on this lesson:
 
 ${context}
 
 Return ONLY a JSON array of 3 objects. Each object has:
 - "title": a short name for the exit ticket (under 60 characters)
-- "description": 1-2 sentences explaining what students do and what the teacher learns from it (under 180 characters)
+- "description": 1-2 sentences describing:
+  1) the exact student task/prompt
+  2) what evidence it gives about mastery of the objective
+  Keep it under 220 characters.
 
-Make them specific to this lesson, not generic. No explanation outside the JSON.
+Quality rules:
+- Every ticket must directly measure the stated objective, not classroom behavior.
+- Use lesson-specific language/content from the objective/activities.
+- Include at least one likely misconception or partial-understanding check across the 3 tickets.
+- Keep prompts realistic for a 2-3 minute end-of-lesson check.
+- Avoid generic ideas like "write what you learned" unless grounded in the exact concept.
+
+No explanation outside the JSON.
 Example: [{"title":"Number Line Placement","description":"Students mark 3/4 and 5/4 on a blank number line. Reveals if they understand fractions greater and less than 1."},{"title":"True or False","description":"Students answer: 2/4 and 1/2 are the same point on a number line. Shows if they can identify equivalent fractions."},{"title":"Equivalent to 1 Whole","description":"Students name one fraction equal to 1 whole. Checks understanding of fractions with equal numerator and denominator."}]`
 
   const raw = await groqChat([{ role: 'user', content: prompt }])
