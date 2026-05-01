@@ -235,6 +235,7 @@ export default function App({ userId, isDemo = false, onSignOut }: Props) {
   const [rosterParsing, setRosterParsing] = useState(false)
   const [rosterCopySourceClassId, setRosterCopySourceClassId] = useState<string | null>(null)
   const [rosterCopyTargetClassId, setRosterCopyTargetClassId] = useState<string>('')
+  const [expandedRosterClassId, setExpandedRosterClassId] = useState<string | null>(null)
 
   const SUBJECTS = ['Math', 'ELA', 'Science', 'Social Studies', 'Specials', 'Other']
 
@@ -1047,7 +1048,8 @@ async function handleSuggestExitTicket() {
     rosterAddStudent, setRosterPasteClassId, setRosterPasteText, setRosterCopySourceClassId, setRosterCopyTargetClassId, rosterCopySourceClassId,
     rosterCopyTargetClassId, rosterCopyFromClass, rosterPasteClassId, rosterPasteText, rosterParsing, rosterBulkAdd,
     setScreen,
-    rosterRenamingStudent, setRosterRenamingStudent, rosterStudentRenameValue, setRosterStudentRenameValue, rosterRenameStudent
+    rosterRenamingStudent, setRosterRenamingStudent, rosterStudentRenameValue, setRosterStudentRenameValue, rosterRenameStudent,
+    expandedRosterClassId, setExpandedRosterClassId
   };
 
   return (
