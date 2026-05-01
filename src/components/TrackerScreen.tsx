@@ -141,7 +141,7 @@ export default function TrackerScreen(props: any) {
                   </div>
                   {!isDemo && gotIt > 0 && (
                     <button type="button" onClick={confirmAllGotIt} className="text-xs font-semibold px-3 py-1.5 bg-slate-100 text-slate-600 rounded-xl hover:bg-emerald-50 hover:text-emerald-700 transition-colors shrink-0">
-                      ✓ Save all Got It
+                      ✓ Save All Got It
                     </button>
                   )}
                 </div>
@@ -190,3 +190,4 @@ export default function TrackerScreen(props: any) {
     </>
   )
 }
+
