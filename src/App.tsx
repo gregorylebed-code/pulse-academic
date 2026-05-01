@@ -661,6 +661,24 @@ export default function App({ userId, isDemo = false, onSignOut }: Props) {
     })
   }
 
+  function confirmAllGotIt() {
+    if (!activeLesson || isDemo) return
+    const unmarked = currentStudents.filter(s => (studentStatuses[s.id] ?? 'got-it') === 'got-it')
+    if (unmarked.length === 0) return
+    setStudentStatuses(cur => {
+      const next = { ...cur }
+      unmarked.forEach(s => { next[s.id] = 'got-it' })
+      return next
+    })
+    supabase
+      .from('checkins')
+      .upsert(
+        unmarked.map(s => ({ user_id: userId, lesson_id: activeLesson.id, student_id: s.id, status: 'got-it' })),
+        { onConflict: 'lesson_id,student_id' }
+      )
+      .then()
+  }
+
   // ── Exit tickets ──────────────────────────────────────────────────────────
 
 async function handleSuggestExitTicket() {
@@ -993,7 +1011,7 @@ async function handleSuggestExitTicket() {
     skipDay, setSavedPlan, fileInputRef, handleFileUpload, planText, setPlanText, planError, handleSavePlan, planLoading, planSaved,
     activeLesson, isDemo, handleSuggestExitTicket, exitTicketLoading, setActiveLesson, setLessonInput, setExitTickets, setActiveExitTicket, setShowExitTickets,
     activeSubject, setLessonInputExternal: setLessonInput, startLessonByTitle, formatDate, lessonInput, startLesson, DEMO_LESSONS, selectedClassId,
-    showExitTickets, activeExitTicket, exitTickets, currentStudents, loading, studentStatuses, formatStudentName, nameFormat, STATUS_DOT, STATUS_INITIAL_BG, STATUS_RING, tap,
+    showExitTickets, activeExitTicket, exitTickets, currentStudents, loading, studentStatuses, formatStudentName, nameFormat, STATUS_DOT, STATUS_INITIAL_BG, STATUS_RING, tap, confirmAllGotIt,
     historyTab, setHistoryTab, setSelectedStudentId, setSelectedLesson, classes, setHistoryClassId, historyClassId, classLabel,
     historyLoading, selectedStudentId, historyStudents, studentHistoryRows, STATUS_PILL, STATUS_LABEL,
     filteredHistory, selectedLesson, lessonDetail, lessonGroups,

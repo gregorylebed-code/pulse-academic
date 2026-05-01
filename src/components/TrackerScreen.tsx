@@ -3,7 +3,7 @@ export default function TrackerScreen(props: any) {
   const {
     activeLesson, isDemo, handleSuggestExitTicket, exitTicketLoading, setActiveLesson, setLessonInput, setExitTickets, setActiveExitTicket, setShowExitTickets,
     activeSubject, savedPlan, setLessonInputExternal, startLessonByTitle, formatDate, lessonInput, startLesson, DEMO_LESSONS, selectedClassId,
-    showExitTickets, activeExitTicket, exitTickets, currentStudents, loading, studentStatuses, formatStudentName, nameFormat, STATUS_DOT, STATUS_INITIAL_BG, STATUS_RING, tap
+    showExitTickets, activeExitTicket, exitTickets, currentStudents, loading, studentStatuses, formatStudentName, nameFormat, STATUS_DOT, STATUS_INITIAL_BG, STATUS_RING, tap, confirmAllGotIt
   } = props
 
   return (
@@ -123,6 +123,14 @@ export default function TrackerScreen(props: any) {
         ) : loading ? (
           <div className="flex items-center justify-center h-40 text-slate-400 text-sm">Loading…</div>
         ) : (
+          <>
+            {activeLesson && !isDemo && currentStudents.some((s: any) => (studentStatuses[s.id] ?? 'got-it') === 'got-it') && (
+              <div className="flex justify-end mb-3">
+                <button type="button" onClick={confirmAllGotIt} className="text-xs font-semibold px-4 py-2 bg-slate-100 text-slate-600 rounded-2xl hover:bg-emerald-50 hover:text-emerald-700 transition-colors">
+                  ✓ Mark all remaining as Got It
+                </button>
+              </div>
+            )}
           <div className="grid grid-cols-4 gap-3">
             {currentStudents.map((student: any) => {
               const status = studentStatuses[student.id] ?? 'got-it'
@@ -144,6 +152,7 @@ export default function TrackerScreen(props: any) {
               )
             })}
           </div>
+          </>
         )}
       </main>
     </>
