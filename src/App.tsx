@@ -399,7 +399,7 @@ export default function App({ userId, isDemo = false, onSignOut }: Props) {
     return null // 'all'
   }
 
-  type ReportStudent = { id: string; name: string; lessons: { title: string; date: string; status: 'needs-help' | 'almost' }[] }
+  type ReportStudent = { id: string; name: string; lessons: { title: string; date: string; status: 'needs-help' | 'almost' }[]; notes: { date: string; lessonTitle: string; text: string }[] }
   type ReportClass = { classId: string; className: string; needsSupport: ReportStudent[]; checkIn: ReportStudent[] }
 
   const reportData: ReportClass[] = useMemo(() => {
@@ -420,14 +420,17 @@ export default function App({ userId, isDemo = false, onSignOut }: Props) {
         if (!studentMap.has(row.student_id)) {
           const s = students.find(s => s.id === row.student_id)
           if (!s) continue
-          studentMap.set(row.student_id, { id: row.student_id, name: row.student_name, lessons: [] })
+          studentMap.set(row.student_id, { id: row.student_id, name: row.student_name, lessons: [], notes: [] })
         }
-        studentMap.get(row.student_id)!.lessons.push({ title: row.lesson_title, date: row.date, status: row.status as 'needs-help' | 'almost' })
+        const student = studentMap.get(row.student_id)!
+        student.lessons.push({ title: row.lesson_title, date: row.date, status: row.status as 'needs-help' | 'almost' })
+        if (row.note?.trim()) student.notes.push({ date: row.date, lessonTitle: row.lesson_title, text: row.note.trim() })
       }
 
       const all = [...studentMap.values()].map(s => ({
         ...s,
         lessons: s.lessons.sort((a, b) => b.date.localeCompare(a.date)),
+        notes: s.notes.sort((a, b) => b.date.localeCompare(a.date)),
       }))
 
       const needsSupport = all.filter(s => s.lessons.some(l => l.status === 'needs-help')).sort((a, b) => a.name.localeCompare(b.name))
@@ -454,6 +457,9 @@ export default function App({ userId, isDemo = false, onSignOut }: Props) {
         for (const s of cls.needsSupport) {
           const topics = [...new Set(s.lessons.filter(l => l.status === 'needs-help').map(l => l.title))].join(', ')
           lines.push(`  • ${s.name} — ${topics}`)
+          for (const n of s.notes.slice(0, 3)) {
+            lines.push(`    - Note (${formatDate(n.date)} | ${n.lessonTitle}): ${n.text}`)
+          }
         }
       }
       if (cls.checkIn.length > 0) {
@@ -461,6 +467,9 @@ export default function App({ userId, isDemo = false, onSignOut }: Props) {
         for (const s of cls.checkIn) {
           const topics = [...new Set(s.lessons.map(l => l.title))].join(', ')
           lines.push(`  • ${s.name} — ${topics}`)
+          for (const n of s.notes.slice(0, 3)) {
+            lines.push(`    - Note (${formatDate(n.date)} | ${n.lessonTitle}): ${n.text}`)
+          }
         }
       }
       lines.push('')
