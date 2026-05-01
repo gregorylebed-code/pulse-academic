@@ -1261,6 +1261,20 @@ async function handleSuggestExitTicket() {
             Reports
             {screen === 'reports' && <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-8 h-0.5 bg-rose-500 rounded-full" />}
           </button>
+
+          {/* Sign out */}
+          {!isDemo && (
+            <button
+              type="button"
+              onClick={onSignOut}
+              className="flex-1 flex flex-col items-center justify-center gap-0.5 text-[10px] font-semibold text-slate-400 hover:text-slate-600 transition-colors"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              Sign out
+            </button>
+          )}
         </div>
       </nav>
 
