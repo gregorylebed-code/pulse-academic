@@ -5,7 +5,9 @@ export default function RosterScreen(props: any) {
     setRosterNewClassSubject, SUBJECTS, rosterSaving, studentsByClass, rosterRenaming, rosterRenameValue, setRosterRenameValue, rosterRenameClass,
     setRosterRenaming, rosterConfirmRemove, rosterRemoveStudent, setRosterConfirmRemove, rosterNewStudentName, setRosterNewStudentName,
     rosterAddStudent, setRosterPasteClassId, setRosterPasteText, setRosterCopySourceClassId, setRosterCopyTargetClassId, rosterCopySourceClassId,
-    rosterCopyTargetClassId, rosterCopyFromClass, rosterPasteClassId, rosterPasteText, rosterParsing, rosterBulkAdd
+    rosterCopyTargetClassId, rosterCopyFromClass, rosterPasteClassId, rosterPasteText, rosterParsing, rosterBulkAdd,
+    setScreen, setSelectedStudentId, setHistoryClassId,
+    rosterRenamingStudent, setRosterRenamingStudent, rosterStudentRenameValue, setRosterStudentRenameValue, rosterRenameStudent
   } = props
 
   return (
@@ -86,19 +88,47 @@ export default function RosterScreen(props: any) {
                   </div>
                 )}
 
-                <div className="grid gap-2 mb-4 sm:grid-cols-2">
-                  {students.length === 0 && <p className="text-xs text-slate-300 italic sm:col-span-2">No students yet.</p>}
+                <div className="grid grid-cols-2 gap-2 mb-4">
+                  {students.length === 0 && <p className="text-xs text-slate-300 italic col-span-2">No students yet.</p>}
                   {students.map((s: any) => (
-                    <div key={s.id} className="flex min-h-10 items-center justify-between gap-3 rounded-xl bg-slate-50 px-3 py-2">
-                      <span className="text-sm text-slate-700">{s.name}</span>
-                      {rosterConfirmRemove?.studentId === s.id && rosterConfirmRemove?.classId === cls.id ? (
-                        <div className="flex items-center gap-2 shrink-0">
-                          <span className="text-xs text-slate-400">Remove?</span>
-                          <button type="button" onClick={() => rosterRemoveStudent(s.id, cls.id)} disabled={rosterSaving} className="text-xs font-semibold text-red-500 hover:text-red-700 disabled:opacity-40">Yes</button>
-                          <button type="button" onClick={() => setRosterConfirmRemove(null)} className="text-xs text-slate-400 hover:text-slate-600">No</button>
+                    <div key={s.id} className="flex min-h-10 items-center justify-between gap-2 rounded-xl bg-slate-50 px-3 py-2">
+                      {rosterRenamingStudent === s.id ? (
+                        <div className="flex items-center gap-1.5 flex-1 min-w-0">
+                          <input
+                            type="text"
+                            value={rosterStudentRenameValue}
+                            onChange={e => setRosterStudentRenameValue(e.target.value)}
+                            onKeyDown={e => e.key === 'Enter' && rosterRenameStudent(s.id)}
+                            autoFocus
+                            className="flex-1 min-w-0 text-sm bg-white rounded-lg px-2 py-1 outline-none border border-slate-200 focus:border-teal-300 font-medium"
+                          />
+                          <button type="button" onClick={() => rosterRenameStudent(s.id)} disabled={rosterSaving} className="text-xs font-semibold text-teal-600 hover:text-teal-700 disabled:opacity-40">Save</button>
+                          <button type="button" onClick={() => setRosterRenamingStudent(null)} className="text-xs text-slate-400 hover:text-slate-600">✕</button>
                         </div>
                       ) : (
-                        <button type="button" onClick={() => setRosterConfirmRemove({ studentId: s.id, classId: cls.id })} className="text-xs text-slate-300 hover:text-red-400">✕</button>
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => { setHistoryClassId(cls.id); setSelectedStudentId(s.id); setScreen('history') }}
+                            className="text-sm text-slate-700 hover:text-teal-600 text-left truncate font-medium transition-colors"
+                          >
+                            {s.name}
+                          </button>
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            {rosterConfirmRemove?.studentId === s.id && rosterConfirmRemove?.classId === cls.id ? (
+                              <>
+                                <span className="text-xs text-slate-400">Remove?</span>
+                                <button type="button" onClick={() => rosterRemoveStudent(s.id, cls.id)} disabled={rosterSaving} className="text-xs font-semibold text-red-500 hover:text-red-700 disabled:opacity-40">Yes</button>
+                                <button type="button" onClick={() => setRosterConfirmRemove(null)} className="text-xs text-slate-400 hover:text-slate-600">No</button>
+                              </>
+                            ) : (
+                              <>
+                                <button type="button" onClick={() => { setRosterRenamingStudent(s.id); setRosterStudentRenameValue(s.name) }} className="text-xs text-slate-300 hover:text-teal-500">✎</button>
+                                <button type="button" onClick={() => setRosterConfirmRemove({ studentId: s.id, classId: cls.id })} className="text-xs text-slate-300 hover:text-red-400">✕</button>
+                              </>
+                            )}
+                          </div>
+                        </>
                       )}
                     </div>
                   ))}

@@ -224,6 +224,8 @@ export default function App({ userId, isDemo = false, onSignOut }: Props) {
   const [rosterRenaming, setRosterRenaming] = useState<string | null>(null)
   const [rosterRenameValue, setRosterRenameValue] = useState('')
   const [rosterConfirmRemove, setRosterConfirmRemove] = useState<{ studentId: string; classId: string } | null>(null)
+  const [rosterRenamingStudent, setRosterRenamingStudent] = useState<string | null>(null)
+  const [rosterStudentRenameValue, setRosterStudentRenameValue] = useState('')
   const [rosterAddingClass, setRosterAddingClass] = useState(false)
   const [rosterNewClassName, setRosterNewClassName] = useState('')
   const [rosterNewClassSubject, setRosterNewClassSubject] = useState('Math')
@@ -310,6 +312,24 @@ export default function App({ userId, isDemo = false, onSignOut }: Props) {
     await supabase.from('student_classes').delete().eq('student_id', studentId).eq('class_id', classId)
     setStudentsByClass(cur => ({ ...cur, [classId]: (cur[classId] ?? []).filter(s => s.id !== studentId) }))
     setRosterConfirmRemove(null)
+    setRosterSaving(false)
+  }
+
+  async function rosterRenameStudent(studentId: string) {
+    const name = rosterStudentRenameValue.trim()
+    if (!name) return
+    setRosterSaving(true)
+    await supabase.from('students').update({ name }).eq('id', studentId)
+    // Update the student name in every class they belong to
+    setStudentsByClass(cur => {
+      const next = { ...cur }
+      for (const classId of Object.keys(next)) {
+        next[classId] = next[classId].map(s => s.id === studentId ? { ...s, name } : s)
+      }
+      return next
+    })
+    setRosterRenamingStudent(null)
+    setRosterStudentRenameValue('')
     setRosterSaving(false)
   }
 
@@ -1025,7 +1045,9 @@ async function handleSuggestExitTicket() {
     setRosterNewClassSubject, SUBJECTS, rosterSaving, studentsByClass, rosterRenaming, rosterRenameValue, setRosterRenameValue, rosterRenameClass,
     setRosterRenaming, rosterConfirmRemove, rosterRemoveStudent, setRosterConfirmRemove, rosterNewStudentName, setRosterNewStudentName,
     rosterAddStudent, setRosterPasteClassId, setRosterPasteText, setRosterCopySourceClassId, setRosterCopyTargetClassId, rosterCopySourceClassId,
-    rosterCopyTargetClassId, rosterCopyFromClass, rosterPasteClassId, rosterPasteText, rosterParsing, rosterBulkAdd
+    rosterCopyTargetClassId, rosterCopyFromClass, rosterPasteClassId, rosterPasteText, rosterParsing, rosterBulkAdd,
+    setScreen,
+    rosterRenamingStudent, setRosterRenamingStudent, rosterStudentRenameValue, setRosterStudentRenameValue, rosterRenameStudent
   };
 
   return (
