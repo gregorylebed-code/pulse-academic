@@ -146,7 +146,7 @@ export default function TrackerScreen(props: any) {
                 </div>
               )
             })()}
-          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3">
+          <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-2">
             {currentStudents.map((student: any) => {
               const status = studentStatuses[student.id] ?? 'got-it'
               const initial = student.name.trim()[0].toUpperCase()
@@ -156,13 +156,13 @@ export default function TrackerScreen(props: any) {
                   key={student.id}
                   type="button"
                   onClick={() => tap(student.id)}
-                  className="flex flex-col items-center gap-2 bg-white rounded-2xl py-3 px-1 shadow-sm active:scale-95 transition-transform relative"
+                  className="flex flex-col items-center gap-1 bg-white rounded-xl py-2 px-1 shadow-sm active:scale-95 transition-transform relative"
                 >
-                  <span className={`absolute top-2 right-2 w-2 h-2 rounded-full ${STATUS_DOT[status as keyof typeof STATUS_DOT]}`} />
-                  <div className={`w-12 h-12 rounded-full flex items-center justify-center text-lg font-bold ${STATUS_INITIAL_BG[status as keyof typeof STATUS_INITIAL_BG]} ${STATUS_RING[status as keyof typeof STATUS_RING]}`}>
+                  <span className={`absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full ${STATUS_DOT[status as keyof typeof STATUS_DOT]}`} />
+                  <div className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold ${STATUS_INITIAL_BG[status as keyof typeof STATUS_INITIAL_BG]} ${STATUS_RING[status as keyof typeof STATUS_RING]}`}>
                     {initial}
                   </div>
-                  <span className="text-xs font-semibold text-slate-700 leading-tight text-center px-1">{displayName}</span>
+                  <span className="text-[10px] font-bold text-slate-700 leading-tight text-center px-0.5 truncate w-full">{displayName}</span>
                 </button>
               )
             })}
