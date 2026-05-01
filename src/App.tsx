@@ -1116,8 +1116,12 @@ async function handleSuggestExitTicket() {
         )}
       </header>
 
-      {/* Subject tabs */}
-      {screen === 'tracker' && savedPlan && savedPlan.trackedSubjects.length > 1 && (
+      {/* Subject tabs — only shown when the class has no fixed subject (e.g. homeroom covering multiple subjects) */}
+      {(() => {
+        const selectedClass = classes.find(c => c.id === selectedClassId)
+        const classHasFixedSubject = selectedClass?.subject && savedPlan?.trackedSubjects.includes(selectedClass.subject)
+        return screen === 'tracker' && savedPlan && savedPlan.trackedSubjects.length > 1 && !classHasFixedSubject
+      })() && (
         <div className="bg-white border-b border-slate-100 px-4 overflow-x-auto scrollbar-none">
           <div className="flex gap-6 min-w-max">
           {savedPlan.trackedSubjects.map(subj => (
