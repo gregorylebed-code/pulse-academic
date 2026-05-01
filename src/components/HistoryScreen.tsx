@@ -21,11 +21,11 @@ export default function HistoryScreen(props: any) {
         </div>
         {classes.length > 1 && (
           <div className="w-full overflow-x-auto scrollbar-none pb-2 sm:w-auto sm:pb-2">
-            <div className="flex w-max gap-1 rounded-xl bg-slate-100 p-1">
+            <div className="flex w-max gap-2 rounded-xl bg-slate-100 p-1.5">
               {classes.map((cls: any) => (
                 <button key={cls.id} type="button"
                   onClick={() => { setHistoryClassId(cls.id); setSelectedStudentId(null); setSelectedLesson(null) }}
-                  className={`max-w-[10.5rem] truncate whitespace-nowrap px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${historyClassId === cls.id ? 'bg-teal-500 text-white shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                  className={`max-w-[10.5rem] truncate whitespace-nowrap px-4 py-1.5 rounded-lg text-xs font-semibold transition-all ${historyClassId === cls.id ? 'bg-teal-500 text-white shadow-sm' : 'bg-white text-slate-500 shadow-sm hover:text-slate-700'}`}
                 >
                   {classLabel(cls)}
                 </button>
