@@ -121,16 +121,31 @@ export default function TrackerScreen(props: any) {
             </p>
           </div>
         ) : loading ? (
-          <div className="flex items-center justify-center h-40 text-slate-400 text-sm">Loading…</div>
+          <div className="flex flex-col items-center justify-center h-40 gap-3">
+            <svg className="animate-spin h-6 w-6 text-teal-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
+            <p className="text-slate-400 text-sm">Loading…</p>
+          </div>
         ) : (
           <>
-            {activeLesson && !isDemo && currentStudents.some((s: any) => (studentStatuses[s.id] ?? 'got-it') === 'got-it') && (
-              <div className="flex justify-end mb-3">
-                <button type="button" onClick={confirmAllGotIt} className="text-xs font-semibold px-4 py-2 bg-slate-100 text-slate-600 rounded-2xl hover:bg-emerald-50 hover:text-emerald-700 transition-colors">
-                  ✓ Mark all remaining as Got It
-                </button>
-              </div>
-            )}
+            {activeLesson && currentStudents.length > 0 && (() => {
+              const gotIt = currentStudents.filter((s: any) => (studentStatuses[s.id] ?? 'got-it') === 'got-it').length
+              const almost = currentStudents.filter((s: any) => studentStatuses[s.id] === 'almost').length
+              const needsHelp = currentStudents.filter((s: any) => studentStatuses[s.id] === 'needs-help').length
+              return (
+                <div className="flex items-center justify-between mb-3 bg-white rounded-2xl px-4 py-2.5 shadow-sm">
+                  <div className="flex items-center gap-4 text-xs font-semibold">
+                    <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-emerald-400" /><span className="text-emerald-700">{gotIt} Got It</span></span>
+                    <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-yellow-400" /><span className="text-yellow-700">{almost} Almost</span></span>
+                    <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-red-400" /><span className="text-red-600">{needsHelp} Needs Help</span></span>
+                  </div>
+                  {!isDemo && gotIt > 0 && (
+                    <button type="button" onClick={confirmAllGotIt} className="text-xs font-semibold px-3 py-1.5 bg-slate-100 text-slate-600 rounded-xl hover:bg-emerald-50 hover:text-emerald-700 transition-colors shrink-0">
+                      ✓ Save all Got It
+                    </button>
+                  )}
+                </div>
+              )
+            })()}
           <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3">
             {currentStudents.map((student: any) => {
               const status = studentStatuses[student.id] ?? 'got-it'

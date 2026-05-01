@@ -59,7 +59,7 @@ export default function RosterScreen(props: any) {
 
         <div className="grid gap-4 xl:grid-cols-2">
           {classes.map((cls: any) => {
-            const students = studentsByClass[cls.id] ?? []
+            const students = [...(studentsByClass[cls.id] ?? [])].sort((a: any, b: any) => a.name.localeCompare(b.name))
             const isRenaming = rosterRenaming === cls.id
             return (
               <div key={cls.id} className="bg-white rounded-2xl shadow-sm px-4 py-4">
