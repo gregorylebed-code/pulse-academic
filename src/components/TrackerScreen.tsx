@@ -4,7 +4,7 @@ export default function TrackerScreen(props: any) {
     activeLesson, isDemo, handleSuggestExitTicket, exitTicketLoading, setActiveLesson, setLessonInput, setExitTickets, setActiveExitTicket, setShowExitTickets,
     activeSubject, savedPlan, setLessonInputExternal, startLessonByTitle, formatDate, lessonInput, startLesson, DEMO_LESSONS, selectedClassId,
     showExitTickets, activeExitTicket, exitTickets, currentStudents, loading, studentStatuses, formatStudentName, nameFormat, STATUS_DOT, STATUS_INITIAL_BG, STATUS_RING, tap, confirmAllGotIt,
-    openProfile, checkinNotes, onCirclePointerDown, onCirclePointerUp,
+    openProfile, checkinNotes, onCirclePointerDown, onCirclePointerUp, onCirclePointerCancel,
   } = props
 
   return (
@@ -162,9 +162,11 @@ export default function TrackerScreen(props: any) {
                     type="button"
                     onClick={() => tap(student.id)}
                     onPointerDown={() => onCirclePointerDown(student.id, student.name)}
-                    onPointerUp={onCirclePointerUp}
-                    onPointerLeave={onCirclePointerUp}
-                    className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold active:scale-95 transition-transform select-none ${STATUS_INITIAL_BG[status as keyof typeof STATUS_INITIAL_BG]} ${STATUS_RING[status as keyof typeof STATUS_RING]}`}
+                    onPointerUp={() => onCirclePointerUp(student.id, student.name)}
+                    onPointerLeave={onCirclePointerCancel}
+                    onPointerCancel={onCirclePointerCancel}
+                    onContextMenu={(e) => e.preventDefault()}
+                    className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold active:scale-95 transition-transform select-none touch-manipulation ${STATUS_INITIAL_BG[status as keyof typeof STATUS_INITIAL_BG]} ${STATUS_RING[status as keyof typeof STATUS_RING]}`}
                   >
                     {initial}
                   </button>

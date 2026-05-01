@@ -489,6 +489,9 @@ export default function App({ userId, isDemo = false, onSignOut }: Props) {
   const [noteModal, setNoteModal] = useState<{ studentId: string; studentName: string } | null>(null)
   const [noteText, setNoteText] = useState('')
   const holdTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const holdTriggeredRef = useRef(false)
+  const holdStudentRef = useRef<{ studentId: string; studentName: string } | null>(null)
+  const suppressNextTapRef = useRef(false)
 
   function openNoteModal(studentId: string, studentName: string) {
     setNoteText(checkinNotes[studentId] ?? '')
@@ -515,14 +518,32 @@ export default function App({ userId, isDemo = false, onSignOut }: Props) {
   }
 
   function onCirclePointerDown(studentId: string, studentName: string) {
+    holdTriggeredRef.current = false
+    holdStudentRef.current = { studentId, studentName }
+    if (holdTimerRef.current) clearTimeout(holdTimerRef.current)
     holdTimerRef.current = setTimeout(() => {
+      holdTriggeredRef.current = true
       if (navigator.vibrate) navigator.vibrate(30)
-      openNoteModal(studentId, studentName)
     }, 500)
   }
 
-  function onCirclePointerUp() {
+  function onCirclePointerUp(studentId: string, studentName: string) {
     if (holdTimerRef.current) { clearTimeout(holdTimerRef.current); holdTimerRef.current = null }
+    const shouldOpen = holdTriggeredRef.current
+      && holdStudentRef.current?.studentId === studentId
+      && holdStudentRef.current?.studentName === studentName
+    holdTriggeredRef.current = false
+    holdStudentRef.current = null
+    if (shouldOpen) {
+      suppressNextTapRef.current = true
+      openNoteModal(studentId, studentName)
+    }
+  }
+
+  function onCirclePointerCancel() {
+    if (holdTimerRef.current) { clearTimeout(holdTimerRef.current); holdTimerRef.current = null }
+    holdTriggeredRef.current = false
+    holdStudentRef.current = null
   }
 
   // ── Load classes + students ──────────────────────────────────────────────
@@ -719,6 +740,10 @@ export default function App({ userId, isDemo = false, onSignOut }: Props) {
   }
 
   function tap(studentId: string) {
+    if (suppressNextTapRef.current) {
+      suppressNextTapRef.current = false
+      return
+    }
     if (navigator.vibrate) {
       navigator.vibrate(50);
     }
@@ -1110,7 +1135,7 @@ async function handleSuggestExitTicket() {
     expandedRosterClassId, setExpandedRosterClassId,
     cycleNameFormat,
     openProfile,
-    checkinNotes, onCirclePointerDown, onCirclePointerUp,
+    checkinNotes, onCirclePointerDown, onCirclePointerUp, onCirclePointerCancel,
   };
 
   return (
