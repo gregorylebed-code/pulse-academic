@@ -195,6 +195,8 @@ export default function App({ userId, isDemo = false, onSignOut }: Props) {
   const [editDraft, setEditDraft] = useState<DayLesson | null>(null)
   const [swapSource, setSwapSource] = useState<string | null>(null)
   const [skipConfirmDay, setSkipConfirmDay] = useState<string | null>(null)
+  const [swapSubjectSource, setSwapSubjectSource] = useState<{ dateISO: string; subject: string } | null>(null)
+  const [skipConfirmSubject, setSkipConfirmSubject] = useState<{ dateISO: string; subject: string } | null>(null)
   const [planSaving, setPlanSaving] = useState(false)
   const [undoSnapshot, setUndoSnapshot] = useState<WeekSchedule | null>(null)
   const [planSaved, setPlanSaved] = useState(false)
@@ -830,6 +832,75 @@ async function handleSuggestExitTicket() {
     await persistSchedule(schedule, snapshot)
   }
 
+  async function skipSubject(dateISO: string, subject: string, pushBack: boolean) {
+    if (!savedPlan) return
+    const snapshot: WeekSchedule = JSON.parse(JSON.stringify(savedPlan.schedule))
+    const schedule: WeekSchedule = JSON.parse(JSON.stringify(savedPlan.schedule))
+    if (!pushBack) {
+      if (schedule[dateISO]) {
+        delete schedule[dateISO][subject]
+        if (Object.keys(schedule[dateISO]).length === 0) delete schedule[dateISO]
+      }
+    } else {
+      const [y, m, d] = dateISO.split('-').map(Number)
+      const skippedDate = new Date(y, m - 1, d)
+      const datesToShift = Object.keys(schedule)
+        .filter(k => { const [ky, km, kd] = k.split('-').map(Number); return new Date(ky, km - 1, kd) >= skippedDate })
+        .sort()
+      // collect subject's lesson for each day from skipped date onward
+      const subjectByDay: Record<string, WeekSchedule[string][string]> = {}
+      for (const k of datesToShift) {
+        if (schedule[k][subject]) subjectByDay[k] = schedule[k][subject]
+      }
+      // remove this subject from all affected days
+      for (const k of datesToShift) {
+        delete schedule[k][subject]
+        if (Object.keys(schedule[k]).length === 0) delete schedule[k]
+      }
+      // write each subject lesson to the next weekday, dropping Friday's (it falls off)
+      for (const k of datesToShift) {
+        if (!subjectByDay[k]) continue
+        const next = nextISOWeekday(k)
+        if (!schedule[next]) schedule[next] = {}
+        schedule[next][subject] = subjectByDay[k]
+      }
+    }
+    setExpandedDay(null); setSkipConfirmSubject(null)
+    await persistSchedule(schedule, snapshot)
+  }
+
+  async function handleSwapSubject(dateISO: string, subject: string) {
+    if (!savedPlan) return
+    if (!swapSubjectSource) {
+      setSwapSubjectSource({ dateISO, subject })
+      return
+    }
+    if (swapSubjectSource.dateISO === dateISO && swapSubjectSource.subject === subject) {
+      setSwapSubjectSource(null)
+      return
+    }
+    const snapshot: WeekSchedule = JSON.parse(JSON.stringify(savedPlan.schedule))
+    const schedule: WeekSchedule = JSON.parse(JSON.stringify(savedPlan.schedule))
+    const srcLesson = schedule[swapSubjectSource.dateISO]?.[subject]
+    const dstLesson = schedule[dateISO]?.[subject]
+    if (srcLesson) {
+      if (!schedule[dateISO]) schedule[dateISO] = {}
+      schedule[dateISO][subject] = srcLesson
+    } else if (schedule[dateISO]) {
+      delete schedule[dateISO][subject]
+      if (Object.keys(schedule[dateISO]).length === 0) delete schedule[dateISO]
+    }
+    if (dstLesson) {
+      if (!schedule[swapSubjectSource.dateISO]) schedule[swapSubjectSource.dateISO] = {}
+      schedule[swapSubjectSource.dateISO][subject] = dstLesson
+    } else if (schedule[swapSubjectSource.dateISO]) {
+      delete schedule[swapSubjectSource.dateISO][subject]
+      if (Object.keys(schedule[swapSubjectSource.dateISO]).length === 0) delete schedule[swapSubjectSource.dateISO]
+    }
+    setSwapSubjectSource(null)
+    await persistSchedule(schedule, snapshot)
+  }
+
   async function copyToNext(dateISO: string) {
     if (!savedPlan) return
     const day = savedPlan.schedule[dateISO]
@@ -1065,6 +1136,7 @@ async function handleSuggestExitTicket() {
                     <button type="button" onClick={handleUndo} className="text-xs font-semibold text-slate-500 hover:text-teal-600 underline">↩ Undo</button>
                   )}
                   {swapSource && <p className="text-xs text-amber-600 font-semibold">Tap another day to swap — <button type="button" onClick={() => setSwapSource(null)} className="underline">cancel</button></p>}
+                  {swapSubjectSource && <p className="text-xs text-amber-600 font-semibold">Tap another day to swap <strong>{swapSubjectSource.subject}</strong> — <button type="button" onClick={() => setSwapSubjectSource(null)} className="underline">cancel</button></p>}
                   {planSaving && <p className="text-xs text-slate-400">Saving…</p>}
                 </div>
               </div>
@@ -1102,24 +1174,34 @@ async function handleSuggestExitTicket() {
                   )
                 }
 
+                const isSubjectSwapTarget = swapSubjectSource !== null && swapSubjectSource.dateISO !== dateISO
+
                 return (
-                  <div key={dayName} className={`border-b border-slate-50 last:border-0 ${isToday ? 'bg-teal-50 -mx-4 px-4' : ''} ${isSwapSource ? 'bg-amber-50 -mx-4 px-4' : ''}`}>
-                    <button type="button" onClick={() => { if (swapSource) { handleSwap(dateISO); return } setExpandedDay(isExpanded ? null : dateISO) }} className="flex items-start gap-3 py-2.5 w-full text-left">
+                  <div key={dayName} className={`border-b border-slate-50 last:border-0 ${isToday ? 'bg-teal-50 -mx-4 px-4' : ''} ${isSwapSource ? 'bg-amber-50 -mx-4 px-4' : ''} ${isSubjectSwapTarget ? 'bg-amber-50 -mx-4 px-4' : ''}`}>
+                    <button type="button" onClick={() => { if (swapSource) { handleSwap(dateISO); return } if (!swapSubjectSource) setExpandedDay(isExpanded ? null : dateISO) }} className="flex items-start gap-3 py-2.5 w-full text-left">
                       <span className={`text-xs font-semibold w-10 shrink-0 mt-0.5 ${isToday ? 'text-teal-600' : isSwapSource ? 'text-amber-500' : 'text-slate-400'}`}>{dayName.slice(0, 3)}</span>
                       <div className="flex-1 min-w-0 flex flex-col gap-0.5">
-                        {subjects.length > 0 ? subjects.map(subj => (
-                          <div key={subj} className="flex items-baseline gap-2">
-                            <span className="text-xs font-semibold text-slate-400 w-14 shrink-0">{subj}</span>
-                            <span className="text-sm font-semibold text-slate-700 truncate">{dayLessons[subj].title}</span>
-                          </div>
-                        )) : <span className="text-slate-300 italic text-sm">No lesson</span>}
+                        {subjects.length > 0 ? subjects.map(subj => {
+                          const isSwapSubjSrc = swapSubjectSource?.dateISO === dateISO && swapSubjectSource?.subject === subj
+                          return (
+                            <div key={subj} className="flex items-baseline gap-2">
+                              <span className="text-xs font-semibold text-slate-400 w-14 shrink-0">{subj}</span>
+                              <span className="text-sm font-semibold text-slate-700 truncate">{dayLessons[subj].title}</span>
+                              {isSwapSubjSrc && <span className="text-xs text-amber-500 font-semibold shrink-0">← swapping</span>}
+                              {isSubjectSwapTarget && swapSubjectSource?.subject === subj && (
+                                <button type="button" onClick={e => { e.stopPropagation(); handleSwapSubject(dateISO, subj) }} className="text-xs font-semibold text-amber-600 underline shrink-0">swap here</button>
+                              )}
+                            </div>
+                          )
+                        }) : <span className="text-slate-300 italic text-sm">No lesson</span>}
                       </div>
-                      {!swapSource && <span className="text-slate-300 text-xs mt-0.5">{isExpanded ? '▲' : '▼'}</span>}
+                      {!swapSource && !swapSubjectSource && <span className="text-slate-300 text-xs mt-0.5">{isExpanded ? '▲' : '▼'}</span>}
                     </button>
-                    {isExpanded && !swapSource && (
+                    {isExpanded && !swapSource && !swapSubjectSource && (
                       <div className="pb-3 flex flex-col gap-4" style={{ paddingLeft: '3.25rem' }}>
                         {subjects.map(subj => {
                           const lesson = dayLessons[subj]
+                          const isSkippingThisSubj = skipConfirmSubject?.dateISO === dateISO && skipConfirmSubject?.subject === subj
                           return (
                             <div key={subj}>
                               <p className="text-xs font-bold text-teal-600 mb-1.5">{subj}</p>
@@ -1131,19 +1213,33 @@ async function handleSuggestExitTicket() {
                                   </div>
                                 ))}
                               </div>
-                              <button type="button" onClick={() => startEdit(dateISO, subj)} className="mt-2 text-xs font-semibold px-3 py-1.5 bg-slate-100 text-slate-600 rounded-xl hover:bg-teal-50 hover:text-teal-700">✏️ Edit {subj}</button>
+                              <div className="flex flex-wrap gap-2 mt-2">
+                                <button type="button" onClick={() => startEdit(dateISO, subj)} className="text-xs font-semibold px-3 py-1.5 bg-slate-100 text-slate-600 rounded-xl hover:bg-teal-50 hover:text-teal-700">✏️ Edit</button>
+                                <button type="button" onClick={() => { setExpandedDay(null); handleSwapSubject(dateISO, subj) }} className="text-xs font-semibold px-3 py-1.5 bg-slate-100 text-slate-600 rounded-xl hover:bg-amber-50 hover:text-amber-700">⇄ Swap {subj}</button>
+                                {!isSkippingThisSubj && (
+                                  <button type="button" onClick={() => setSkipConfirmSubject({ dateISO, subject: subj })} className="text-xs font-semibold px-3 py-1.5 bg-slate-100 text-red-400 rounded-xl hover:bg-red-50">✕ Skip {subj}</button>
+                                )}
+                                {isSkippingThisSubj && (
+                                  <div className="flex flex-col gap-1.5 w-full mt-1">
+                                    <p className="text-xs text-slate-500 font-semibold">Skip {subj} how?</p>
+                                    <button type="button" onClick={() => skipSubject(dateISO, subj, false)} className="text-xs font-semibold px-3 py-1.5 bg-red-50 text-red-500 rounded-xl text-left">✕ Just remove {subj} this day</button>
+                                    <button type="button" onClick={() => skipSubject(dateISO, subj, true)} className="text-xs font-semibold px-3 py-1.5 bg-amber-50 text-amber-600 rounded-xl text-left">⇩ Remove and push {subj} lessons back</button>
+                                    <button type="button" onClick={() => setSkipConfirmSubject(null)} className="text-xs text-slate-400 px-1">cancel</button>
+                                  </div>
+                                )}
+                              </div>
                             </div>
                           )
                         })}
-                        <div className="flex flex-wrap gap-2">
-                          <button type="button" onClick={() => handleSwap(dateISO)} className="text-xs font-semibold px-3 py-1.5 bg-slate-100 text-slate-600 rounded-xl hover:bg-amber-50 hover:text-amber-700">⇄ Swap day</button>
+                        <div className="flex flex-wrap gap-2 pt-2 border-t border-slate-100">
+                          <button type="button" onClick={() => handleSwap(dateISO)} className="text-xs font-semibold px-3 py-1.5 bg-slate-100 text-slate-600 rounded-xl hover:bg-amber-50 hover:text-amber-700">⇄ Swap entire day</button>
                           {subjects.length > 0 && <button type="button" onClick={() => copyToNext(dateISO)} className="text-xs font-semibold px-3 py-1.5 bg-slate-100 text-slate-600 rounded-xl hover:bg-blue-50 hover:text-blue-700">→ Copy to next day</button>}
                           {subjects.length > 0 && skipConfirmDay !== dateISO && (
-                            <button type="button" onClick={() => setSkipConfirmDay(dateISO)} className="text-xs font-semibold px-3 py-1.5 bg-slate-100 text-red-400 rounded-xl hover:bg-red-50">✕ Skip day</button>
+                            <button type="button" onClick={() => setSkipConfirmDay(dateISO)} className="text-xs font-semibold px-3 py-1.5 bg-slate-100 text-red-400 rounded-xl hover:bg-red-50">✕ Skip entire day</button>
                           )}
                           {subjects.length > 0 && skipConfirmDay === dateISO && (
                             <div className="flex flex-col gap-1.5 w-full mt-1">
-                              <p className="text-xs text-slate-500 font-semibold">Skip how?</p>
+                              <p className="text-xs text-slate-500 font-semibold">Skip entire day how?</p>
                               <button type="button" onClick={() => skipDay(dateISO, false)} className="text-xs font-semibold px-3 py-1.5 bg-red-50 text-red-500 rounded-xl text-left">✕ Just remove this day</button>
                               <button type="button" onClick={() => skipDay(dateISO, true)} className="text-xs font-semibold px-3 py-1.5 bg-amber-50 text-amber-600 rounded-xl text-left">⇩ Remove and push remaining days back</button>
                               <button type="button" onClick={() => setSkipConfirmDay(null)} className="text-xs text-slate-400 px-1">cancel</button>
@@ -1155,7 +1251,7 @@ async function handleSuggestExitTicket() {
                   </div>
                 )
               })}
-              <button type="button" onClick={() => { setSavedPlan(null); setExpandedDay(null); setEditingDay(null); setEditSubject(null); setSwapSource(null) }} className="text-xs text-slate-400 hover:text-slate-600 mt-3">Upload new plan</button>
+              <button type="button" onClick={() => { setSavedPlan(null); setExpandedDay(null); setEditingDay(null); setEditSubject(null); setSwapSource(null); setSwapSubjectSource(null); setSkipConfirmSubject(null) }} className="text-xs text-slate-400 hover:text-slate-600 mt-3">Upload new plan</button>
             </div>
           ) : !pendingSchedule ? (
             <>
