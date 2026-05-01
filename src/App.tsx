@@ -889,7 +889,7 @@ export default function App({ userId, isDemo = false, onSignOut }: Props) {
   }
 
   return (
-    <div className="min-h-screen flex flex-col overflow-x-hidden" style={{ background: '#f5f0e8' }}>
+    <div className="min-h-screen flex flex-col overflow-x-hidden pb-20" style={{ background: '#f5f0e8' }}>
       {/* Header */}
       <header className="bg-white/95 shadow-sm shadow-slate-200/70 backdrop-blur">
         <div className="px-4 py-4 sm:px-5 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -901,7 +901,7 @@ export default function App({ userId, isDemo = false, onSignOut }: Props) {
           <p className="text-xs text-slate-400 mt-0.5">Academic Tracker</p>
         </div>
         <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2 pb-0.5 sm:flex-nowrap sm:justify-end sm:overflow-x-auto sm:scrollbar-none">
+          <div className="hidden flex-wrap items-center gap-2 pb-0.5 sm:flex-nowrap sm:justify-end sm:overflow-x-auto sm:scrollbar-none">
             <button
               type="button"
               onClick={cycleNameFormat}
@@ -1688,6 +1688,80 @@ export default function App({ userId, isDemo = false, onSignOut }: Props) {
           </div>
         </div>
       )}
+
+      {/* ── Bottom tab bar ── revert: remove this block + remove pb-20 above + change "hidden" back to "flex" on header nav div */}
+      <nav className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur border-t border-slate-200 shadow-lg z-50">
+        <div className="flex items-stretch h-16">
+          {/* Tracker */}
+          <button
+            type="button"
+            onClick={() => { setScreen('tracker'); setSelectedStudentId(null); setSelectedLesson(null) }}
+            className={`flex-1 flex flex-col items-center justify-center gap-0.5 text-[10px] font-semibold transition-colors relative ${screen === 'tracker' ? 'text-teal-600' : 'text-slate-400 hover:text-slate-600'}`}
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <circle cx="12" cy="12" r="10" /><path d="M12 8v4l3 3" strokeLinecap="round" />
+            </svg>
+            Tracker
+            {screen === 'tracker' && <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-8 h-0.5 bg-teal-500 rounded-full" />}
+          </button>
+
+          {/* Plan */}
+          {!isDemo && (
+            <button
+              type="button"
+              onClick={() => { setScreen('plan'); setSelectedStudentId(null); setSelectedLesson(null) }}
+              className={`flex-1 flex flex-col items-center justify-center gap-0.5 text-[10px] font-semibold transition-colors relative ${screen === 'plan' ? 'text-indigo-600' : 'text-slate-400 hover:text-slate-600'}`}
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <rect x="3" y="4" width="18" height="18" rx="2" /><path d="M16 2v4M8 2v4M3 10h18" strokeLinecap="round" />
+              </svg>
+              Plan
+              {screen === 'plan' && <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-8 h-0.5 bg-indigo-500 rounded-full" />}
+            </button>
+          )}
+
+          {/* History */}
+          <button
+            type="button"
+            onClick={() => { setScreen('history'); setSelectedStudentId(null); setSelectedLesson(null) }}
+            className={`flex-1 flex flex-col items-center justify-center gap-0.5 text-[10px] font-semibold transition-colors relative ${screen === 'history' ? 'text-amber-600' : 'text-slate-400 hover:text-slate-600'}`}
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" strokeLinecap="round" />
+            </svg>
+            History
+            {screen === 'history' && <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-8 h-0.5 bg-amber-500 rounded-full" />}
+          </button>
+
+          {/* Roster */}
+          {!isDemo && (
+            <button
+              type="button"
+              onClick={() => { setScreen('roster'); setSelectedStudentId(null); setSelectedLesson(null) }}
+              className={`flex-1 flex flex-col items-center justify-center gap-0.5 text-[10px] font-semibold transition-colors relative ${screen === 'roster' ? 'text-emerald-600' : 'text-slate-400 hover:text-slate-600'}`}
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" strokeLinecap="round" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75" strokeLinecap="round" />
+              </svg>
+              Roster
+              {screen === 'roster' && <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-8 h-0.5 bg-emerald-500 rounded-full" />}
+            </button>
+          )}
+
+          {/* Reports */}
+          <button
+            type="button"
+            onClick={() => { setScreen('reports'); setSelectedStudentId(null); setSelectedLesson(null) }}
+            className={`flex-1 flex flex-col items-center justify-center gap-0.5 text-[10px] font-semibold transition-colors relative ${screen === 'reports' ? 'text-rose-600' : 'text-slate-400 hover:text-slate-600'}`}
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path d="M9 17v-2m3 2v-4m3 4v-6M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" strokeLinecap="round" />
+            </svg>
+            Reports
+            {screen === 'reports' && <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-8 h-0.5 bg-rose-500 rounded-full" />}
+          </button>
+        </div>
+      </nav>
     </div>
   )
 }
