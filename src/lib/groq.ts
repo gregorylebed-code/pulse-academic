@@ -1,10 +1,15 @@
 const SUPABASE_URL = 'https://zhkgdbjhcignpcspllso.supabase.co'
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY as string
 const MODEL = 'llama-3.3-70b-versatile'
 
 async function groqChat(messages: { role: string; content: string }[]): Promise<string> {
   const res = await fetch(`${SUPABASE_URL}/functions/v1/groq-proxy`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      'apikey': SUPABASE_ANON_KEY,
+      'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+    },
     body: JSON.stringify({ model: MODEL, messages, temperature: 0.3 }),
   })
   if (!res.ok) {
