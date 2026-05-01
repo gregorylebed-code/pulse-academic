@@ -148,8 +148,8 @@ export default function RosterScreen(props: any) {
                                   </>
                                 ) : (
                                   <>
-                                    <button type="button" onClick={() => { setRosterRenamingStudent(s.id); setRosterStudentRenameValue(s.name) }} className="text-xs text-slate-300 hover:text-teal-500">✎</button>
-                                    <button type="button" onClick={() => setRosterConfirmRemove({ studentId: s.id, classId: cls.id })} className="text-xs text-slate-300 hover:text-red-400">✕</button>
+                                    <button type="button" onClick={() => { setRosterRenamingStudent(s.id); setRosterStudentRenameValue(s.name) }} className="text-xs text-teal-500/80 hover:text-teal-700 transition-colors p-1" title="Rename student">✎</button>
+                                    <button type="button" onClick={() => setRosterConfirmRemove({ studentId: s.id, classId: cls.id })} className="text-xs text-red-400 hover:text-red-600 transition-colors p-1" title="Remove student">✕</button>
                                   </>
                                 )}
                               </div>
