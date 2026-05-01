@@ -3,7 +3,8 @@ export default function TrackerScreen(props: any) {
   const {
     activeLesson, isDemo, handleSuggestExitTicket, exitTicketLoading, setActiveLesson, setLessonInput, setExitTickets, setActiveExitTicket, setShowExitTickets,
     activeSubject, savedPlan, setLessonInputExternal, startLessonByTitle, formatDate, lessonInput, startLesson, DEMO_LESSONS, selectedClassId,
-    showExitTickets, activeExitTicket, exitTickets, currentStudents, loading, studentStatuses, formatStudentName, nameFormat, STATUS_DOT, STATUS_INITIAL_BG, STATUS_RING, tap, confirmAllGotIt
+    showExitTickets, activeExitTicket, exitTickets, currentStudents, loading, studentStatuses, formatStudentName, nameFormat, STATUS_DOT, STATUS_INITIAL_BG, STATUS_RING, tap, confirmAllGotIt,
+    openProfile,
   } = props
 
   return (
@@ -152,18 +153,26 @@ export default function TrackerScreen(props: any) {
               const initial = student.name.trim()[0].toUpperCase()
               const displayName = formatStudentName(student.name, nameFormat, currentStudents.map((s: any) => s.name))
               return (
-                <button
+                <div
                   key={student.id}
-                  type="button"
-                  onClick={() => tap(student.id)}
-                  className="flex flex-col items-center gap-1 bg-white rounded-xl py-2 px-1 shadow-sm active:scale-95 transition-transform relative"
+                  className="flex flex-col items-center gap-1 bg-white rounded-xl py-2 px-1 shadow-sm relative"
                 >
                   <span className={`absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full ${STATUS_DOT[status as keyof typeof STATUS_DOT]}`} />
-                  <div className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold ${STATUS_INITIAL_BG[status as keyof typeof STATUS_INITIAL_BG]} ${STATUS_RING[status as keyof typeof STATUS_RING]}`}>
+                  <button
+                    type="button"
+                    onClick={() => tap(student.id)}
+                    className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold active:scale-95 transition-transform ${STATUS_INITIAL_BG[status as keyof typeof STATUS_INITIAL_BG]} ${STATUS_RING[status as keyof typeof STATUS_RING]}`}
+                  >
                     {initial}
-                  </div>
-                  <span className="text-[10px] font-bold text-slate-700 leading-tight text-center px-0.5 truncate w-full">{displayName}</span>
-                </button>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => openProfile(student.id, student.name)}
+                    className="text-[10px] font-bold text-slate-700 leading-tight text-center px-0.5 truncate w-full hover:text-teal-600 transition-colors"
+                  >
+                    {displayName}
+                  </button>
+                </div>
               )
             })}
           </div>

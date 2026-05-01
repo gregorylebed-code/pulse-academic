@@ -3,7 +3,7 @@ export default function HistoryScreen(props: any) {
   const {
     historyTab, setHistoryTab, setSelectedStudentId, setSelectedLesson, classes, setHistoryClassId, historyClassId, classLabel,
     historyLoading, selectedStudentId, formatStudentName, historyStudents, nameFormat, studentHistoryRows, formatDate, STATUS_PILL, STATUS_LABEL,
-    filteredHistory, selectedLesson, lessonDetail, lessonGroups
+    filteredHistory, selectedLesson, lessonDetail, lessonGroups, openProfile,
   } = props
 
   return (
@@ -71,14 +71,19 @@ export default function HistoryScreen(props: any) {
                 const needsHelp = rows.filter((r: any) => r.status === 'needs-help').length
                 const almost = rows.filter((r: any) => r.status === 'almost').length
                 return (
-                  <button key={s.id} type="button" onClick={() => setSelectedStudentId(s.id)} className="bg-white rounded-2xl px-3 py-3 shadow-sm flex flex-col items-center text-center gap-1">
-                    <p className="text-sm font-semibold text-slate-700 leading-tight">{formatStudentName(s.name, nameFormat, historyStudents.map((x: any) => x.name))}</p>
-                    <p className="text-xs text-slate-400">{rows.length} lesson{rows.length !== 1 ? 's' : ''}</p>
-                    <div className="flex flex-wrap justify-center gap-1 mt-0.5">
-                      {needsHelp > 0 && <span className="text-xs font-semibold px-1.5 py-0.5 rounded-full bg-red-100 text-red-600">{needsHelp} ⚠</span>}
-                      {almost > 0 && <span className="text-xs font-semibold px-1.5 py-0.5 rounded-full bg-yellow-100 text-yellow-700">{almost} ~</span>}
-                    </div>
-                  </button>
+                  <div key={s.id} className="bg-white rounded-2xl px-3 py-3 shadow-sm flex flex-col items-center text-center gap-1">
+                    <button type="button" onClick={() => setSelectedStudentId(s.id)} className="w-full flex flex-col items-center gap-1">
+                      <p className="text-sm font-semibold text-slate-700 leading-tight">{formatStudentName(s.name, nameFormat, historyStudents.map((x: any) => x.name))}</p>
+                      <p className="text-xs text-slate-400">{rows.length} lesson{rows.length !== 1 ? 's' : ''}</p>
+                      <div className="flex flex-wrap justify-center gap-1 mt-0.5">
+                        {needsHelp > 0 && <span className="text-xs font-semibold px-1.5 py-0.5 rounded-full bg-red-100 text-red-600">{needsHelp} ⚠</span>}
+                        {almost > 0 && <span className="text-xs font-semibold px-1.5 py-0.5 rounded-full bg-yellow-100 text-yellow-700">{almost} ~</span>}
+                      </div>
+                    </button>
+                    <button type="button" onClick={() => openProfile(s.id, s.name)} className="text-[10px] text-teal-500 font-semibold mt-0.5 hover:text-teal-700">
+                      View profile
+                    </button>
+                  </div>
                 )
               })}
             </div>

@@ -11,6 +11,7 @@ import TrackerScreen from './components/TrackerScreen'
 import HistoryScreen from './components/HistoryScreen'
 import ReportsScreen from './components/ReportsScreen'
 import RosterScreen from './components/RosterScreen'
+import StudentProfileSheet from './components/StudentProfileSheet'
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -210,6 +211,16 @@ export default function App({ userId, isDemo = false, onSignOut }: Props) {
   const [pendingSchedule, setPendingSchedule] = useState<WeekSchedule | null>(null)
   const [subjectChoices, setSubjectChoices] = useState<string[]>([])
   const [activeSubject, setActiveSubject] = useState<string | null>(null)
+
+  // Student profile sheet
+  const [profileStudentId, setProfileStudentId] = useState<string | null>(null)
+  const [profileStudentName, setProfileStudentName] = useState<string>('')
+
+  function openProfile(id: string, name: string) {
+    setProfileStudentId(id)
+    setProfileStudentName(name)
+  }
+  function closeProfile() { setProfileStudentId(null) }
 
   // History
   const [historyTab, setHistoryTab] = useState<HistoryTab>('student')
@@ -1049,7 +1060,8 @@ async function handleSuggestExitTicket() {
     rosterCopyTargetClassId, rosterCopyFromClass, rosterPasteClassId, rosterPasteText, rosterParsing, rosterBulkAdd,
     setScreen,
     rosterRenamingStudent, setRosterRenamingStudent, rosterStudentRenameValue, setRosterStudentRenameValue, rosterRenameStudent,
-    expandedRosterClassId, setExpandedRosterClassId
+    expandedRosterClassId, setExpandedRosterClassId,
+    openProfile,
   };
 
   return (
@@ -1251,6 +1263,14 @@ async function handleSuggestExitTicket() {
           </button>
         </div>
       </nav>
+
+      <StudentProfileSheet
+        studentId={profileStudentId}
+        studentName={profileStudentName}
+        historyData={historyData}
+        classes={classes}
+        onClose={closeProfile}
+      />
     </div>
   )
 }
