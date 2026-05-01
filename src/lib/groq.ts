@@ -1,15 +1,15 @@
-const GROQ_API_KEY = import.meta.env.VITE_GROQ_API_KEY as string
+const SUPABASE_URL = 'https://zhkgdbjhcignpcspllso.supabase.co'
 const MODEL = 'llama-3.3-70b-versatile'
 
 async function groqChat(messages: { role: string; content: string }[]): Promise<string> {
-  const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+  const res = await fetch(`${SUPABASE_URL}/functions/v1/groq-proxy`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${GROQ_API_KEY}` },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ model: MODEL, messages, temperature: 0.3 }),
   })
   if (!res.ok) {
     const body = await res.text().catch(() => '')
-    throw new Error(`Groq error ${res.status}: ${body.slice(0, 200)}`)
+    throw new Error(`Groq proxy error ${res.status}: ${body.slice(0, 200)}`)
   }
   const json = await res.json()
   return json.choices[0].message.content as string
