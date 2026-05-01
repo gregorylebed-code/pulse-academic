@@ -640,6 +640,9 @@ export default function App({ userId, isDemo = false, onSignOut }: Props) {
   }
 
   function tap(studentId: string) {
+    if (navigator.vibrate) {
+      navigator.vibrate(50);
+    }
     if (!activeLesson) return
     if (isDemo) {
       setStudentStatuses(cur => {

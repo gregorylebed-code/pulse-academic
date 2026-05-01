@@ -9,7 +9,7 @@ export default function TrackerScreen(props: any) {
   return (
     <>
       {/* Lesson bar */}
-      <div className="bg-white border-t border-slate-100 px-4 py-4 shadow-sm shadow-slate-200/70">
+      <div className="sticky top-0 z-10 bg-white border-t border-slate-100 px-4 py-4 shadow-sm shadow-slate-200/70">
         {activeLesson ? (
           <div className="flex items-center gap-3 w-full">
             <div className="flex-1 min-w-0">
@@ -131,7 +131,7 @@ export default function TrackerScreen(props: any) {
                 </button>
               </div>
             )}
-          <div className="grid grid-cols-4 gap-3">
+          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3">
             {currentStudents.map((student: any) => {
               const status = studentStatuses[student.id] ?? 'got-it'
               const initial = student.name.trim()[0].toUpperCase()
