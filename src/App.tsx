@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from './lib/supabase'
-import { parseLessonPlan, suggestExitTickets, parseStudentNames, type DayLesson, type WeekSchedule } from './lib/groq'
+import { parseLessonPlan, suggestExitTickets, parseStudentNames, type DayLesson, type WeekSchedule, type ExitTicket } from './lib/groq'
 import {
   DEMO_CLASSES, DEMO_STUDENTS, DEMO_STUDENT_CLASSES, DEMO_LESSONS, DEMO_CHECKINS,
   type DemoClass, type DemoStudent,
@@ -179,9 +179,9 @@ export default function App({ userId, isDemo = false, onSignOut }: Props) {
   const [loading, setLoading] = useState(false)
 
   // Exit ticket
-  const [exitTickets, setExitTickets] = useState<string[]>([])
+  const [exitTickets, setExitTickets] = useState<ExitTicket[]>([])
   const [exitTicketLoading, setExitTicketLoading] = useState(false)
-  const [activeExitTicket, setActiveExitTicket] = useState<string | null>(null)
+  const [activeExitTicket, setActiveExitTicket] = useState<ExitTicket | null>(null)
   const [showExitTickets, setShowExitTickets] = useState(false)
 
   // Week plan
@@ -1235,7 +1235,8 @@ export default function App({ userId, isDemo = false, onSignOut }: Props) {
                 <div className="flex items-start gap-3">
                   <div className="flex-1">
                     <p className="text-xs font-semibold text-amber-700 mb-1">Active Exit Ticket</p>
-                    <p className="text-sm font-semibold text-slate-800">{activeExitTicket}</p>
+                    <p className="text-sm font-semibold text-slate-800">{activeExitTicket.title}</p>
+                    <p className="text-xs text-slate-500 mt-0.5">{activeExitTicket.description}</p>
                   </div>
                   <button type="button" onClick={() => { setActiveExitTicket(null); setShowExitTickets(false) }} className="text-xs text-slate-400 hover:text-slate-600 shrink-0 mt-0.5">✕</button>
                 </div>
@@ -1247,7 +1248,10 @@ export default function App({ userId, isDemo = false, onSignOut }: Props) {
                   </div>
                   <div className="flex flex-col gap-1.5">
                     {exitTickets.map((t, i) => (
-                      <button key={i} type="button" onClick={() => setActiveExitTicket(t)} className="text-left text-sm text-slate-700 bg-white rounded-xl px-3 py-2 shadow-sm hover:bg-amber-50 hover:text-amber-700">{t}</button>
+                      <button key={i} type="button" onClick={() => setActiveExitTicket(t)} className="text-left bg-white rounded-xl px-3 py-2.5 shadow-sm hover:bg-amber-50 hover:text-amber-700 transition-colors">
+                        <p className="text-sm font-semibold text-slate-800">{t.title}</p>
+                        <p className="text-xs text-slate-500 mt-0.5">{t.description}</p>
+                      </button>
                     ))}
                   </div>
                 </div>

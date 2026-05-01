@@ -72,17 +72,23 @@ ${text.slice(0, 3000)}`
   return JSON.parse(match[0])
 }
 
-export async function suggestExitTickets(lesson: DayLesson | string): Promise<string[]> {
+export type ExitTicket = { title: string; description: string }
+
+export async function suggestExitTickets(lesson: DayLesson | string): Promise<ExitTicket[]> {
   const context = typeof lesson === 'string'
     ? `Lesson: "${lesson}"`
     : `Lesson: "${lesson.title}"\nObjective: ${lesson.objective}\nActivities: ${lesson.activities}\nAssessment: ${lesson.assessment}`
 
-  const prompt = `You are a helpful assistant for elementary/middle school teachers. Suggest 3 short exit ticket prompts based on this lesson:
+  const prompt = `You are a helpful assistant for elementary/middle school teachers. Suggest 3 exit ticket ideas based on this lesson:
 
 ${context}
 
-Return ONLY a JSON array of 3 strings, each under 120 characters. Make them specific to this lesson — not generic. No explanation, just the array.
-Example: ["Draw a number line from 0–2 and mark 3/4 and 5/4", "True or false: 2/4 and 1/2 are the same point on a number line", "Name one fraction equivalent to 1 whole"]`
+Return ONLY a JSON array of 3 objects. Each object has:
+- "title": a short name for the exit ticket (under 60 characters)
+- "description": 1-2 sentences explaining what students do and what the teacher learns from it (under 180 characters)
+
+Make them specific to this lesson, not generic. No explanation outside the JSON.
+Example: [{"title":"Number Line Placement","description":"Students mark 3/4 and 5/4 on a blank number line. Reveals if they understand fractions greater and less than 1."},{"title":"True or False","description":"Students answer: 2/4 and 1/2 are the same point on a number line. Shows if they can identify equivalent fractions."},{"title":"Equivalent to 1 Whole","description":"Students name one fraction equal to 1 whole. Checks understanding of fractions with equal numerator and denominator."}]`
 
   const raw = await groqChat([{ role: 'user', content: prompt }])
   const match = raw.match(/\[[\s\S]*\]/)
