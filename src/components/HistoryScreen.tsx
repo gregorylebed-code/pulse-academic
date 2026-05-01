@@ -62,7 +62,7 @@ export default function HistoryScreen(props: any) {
               )}
             </div>
           ) : (
-            <div className="grid grid-cols-4 gap-2">
+            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-2">
               {historyStudents.map((s: any) => {
                 const rows = filteredHistory.filter((r: any) => r.student_id === s.id)
                 const needsHelp = rows.filter((r: any) => r.status === 'needs-help').length

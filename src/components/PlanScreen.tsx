@@ -61,7 +61,7 @@ export default function PlanScreen(props: any) {
             const dateISO = getDateForDayOffset(i)
             const dayLessons = savedPlan.schedule[dateISO] ?? {}
             const isToday = dateISO === today
-            const isExpanded = expandedDay === dateISO
+            const isExpanded = expandedDay === dateISO || (expandedDay === null && isToday)
             const isEditing = editingDay === dateISO
             const isSwapSource = swapSource === dateISO
             const subjects = savedPlan.trackedSubjects.filter((s: string) => dayLessons[s])

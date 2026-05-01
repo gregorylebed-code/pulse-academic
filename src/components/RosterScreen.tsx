@@ -49,6 +49,14 @@ export default function RosterScreen(props: any) {
           </div>
         )}
 
+        {classes.length === 0 && !rosterAddingClass && (
+          <div className="mx-auto mt-10 flex min-h-40 max-w-sm flex-col items-center justify-center rounded-3xl border border-dashed border-slate-200 bg-white/45 px-6 py-10 text-center">
+            <p className="text-2xl mb-3">👋</p>
+            <p className="text-sm font-semibold text-slate-500">Welcome! Start by creating your first class.</p>
+            <p className="mt-1 text-xs text-slate-400">Tap "+ Add class" above to get started.</p>
+          </div>
+        )}
+
         <div className="grid gap-4 xl:grid-cols-2">
           {classes.map((cls: any) => {
             const students = studentsByClass[cls.id] ?? []
