@@ -23,7 +23,7 @@ type NameFormat = 'full' | 'first' | 'initials'
 type AppClass = { id: string; name: string; subject: string; display_order: number }
 type AppStudent = { id: string; name: string }
 type AppLesson = { id: string; class_id: string; date: string; title: string; objective?: string }
-type HistoryRow = { class_id: string; class_name: string; student_id: string; student_name: string; lesson_id: string; lesson_title: string; date: string; status: string }
+type HistoryRow = { class_id: string; class_name: string; student_id: string; student_name: string; lesson_id: string; lesson_title: string; date: string; status: string; note?: string }
 
 // ── Constants ─────────────────────────────────────────────────────────────
 
@@ -484,6 +484,47 @@ export default function App({ userId, isDemo = false, onSignOut }: Props) {
     localStorage.setItem('nameFormat', next)
   }
 
+  // Checkin notes (keyed by studentId, scoped to active lesson)
+  const [checkinNotes, setCheckinNotes] = useState<Record<string, string>>({})
+  const [noteModal, setNoteModal] = useState<{ studentId: string; studentName: string } | null>(null)
+  const [noteText, setNoteText] = useState('')
+  const holdTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  function openNoteModal(studentId: string, studentName: string) {
+    setNoteText(checkinNotes[studentId] ?? '')
+    setNoteModal({ studentId, studentName })
+  }
+
+  function closeNoteModal() {
+    setNoteModal(null)
+    setNoteText('')
+  }
+
+  async function saveNote() {
+    if (!noteModal || !activeLesson || isDemo) { closeNoteModal(); return }
+    const { studentId } = noteModal
+    const trimmed = noteText.trim()
+    setCheckinNotes(cur => ({ ...cur, [studentId]: trimmed }))
+    await supabase
+      .from('checkins')
+      .upsert(
+        { user_id: userId, lesson_id: activeLesson.id, student_id: studentId, status: studentStatuses[studentId] ?? 'got-it', note: trimmed || null },
+        { onConflict: 'lesson_id,student_id' }
+      )
+    closeNoteModal()
+  }
+
+  function onCirclePointerDown(studentId: string, studentName: string) {
+    holdTimerRef.current = setTimeout(() => {
+      if (navigator.vibrate) navigator.vibrate(30)
+      openNoteModal(studentId, studentName)
+    }, 500)
+  }
+
+  function onCirclePointerUp() {
+    if (holdTimerRef.current) { clearTimeout(holdTimerRef.current); holdTimerRef.current = null }
+  }
+
   // ── Load classes + students ──────────────────────────────────────────────
 
   useEffect(() => {
@@ -570,13 +611,13 @@ export default function App({ userId, isDemo = false, onSignOut }: Props) {
       const { data } = await supabase
         .from('checkins')
         .select(`
-          id, status,
+          id, status, note,
           lessons(id, title, date, class_id, classes(id, name)),
           students(id, name)
         `)
         .eq('user_id', userId)
         .order('created_at', { ascending: false })
-      type RawCheckin = { status: string; lessons: { id: string; title: string; date: string; class_id: string; classes: { name: string } } | null; students: { id: string; name: string } | null }
+      type RawCheckin = { status: string; note?: string; lessons: { id: string; title: string; date: string; class_id: string; classes: { name: string } } | null; students: { id: string; name: string } | null }
       const rows: HistoryRow[] = ((data ?? []) as unknown as RawCheckin[]).map(r => ({
         class_id: r.lessons?.class_id ?? '',
         class_name: r.lessons?.classes?.name ?? '',
@@ -586,6 +627,7 @@ export default function App({ userId, isDemo = false, onSignOut }: Props) {
         lesson_title: r.lessons?.title ?? '',
         date: r.lessons?.date ?? '',
         status: r.status,
+        note: r.note ?? undefined,
       }))
       setHistoryData(rows)
       setHistoryLoading(false)
@@ -654,11 +696,16 @@ export default function App({ userId, isDemo = false, onSignOut }: Props) {
     // Load existing checkins
     const { data: checkins } = await supabase
       .from('checkins')
-      .select('student_id, status')
+      .select('student_id, status, note')
       .eq('lesson_id', lessonId)
     const map: Record<string, Status> = {}
-    for (const c of checkins ?? []) map[c.student_id] = c.status as Status
+    const noteMap: Record<string, string> = {}
+    for (const c of checkins ?? []) {
+      map[c.student_id] = c.status as Status
+      if (c.note) noteMap[c.student_id] = c.note
+    }
     setStudentStatuses(map)
+    setCheckinNotes(noteMap)
     setLoading(false)
   }
 
@@ -1062,6 +1109,7 @@ async function handleSuggestExitTicket() {
     rosterRenamingStudent, setRosterRenamingStudent, rosterStudentRenameValue, setRosterStudentRenameValue, rosterRenameStudent,
     expandedRosterClassId, setExpandedRosterClassId,
     openProfile,
+    checkinNotes, onCirclePointerDown, onCirclePointerUp,
   };
 
   return (
@@ -1298,6 +1346,32 @@ async function handleSuggestExitTicket() {
         classes={classes}
         onClose={closeProfile}
       />
+
+      {/* Note modal */}
+      {noteModal && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 backdrop-blur-sm" onClick={closeNoteModal}>
+          <div className="w-full max-w-lg bg-white rounded-t-3xl px-5 pt-5 pb-8 shadow-xl" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-sm font-bold text-slate-800">
+                Note — {formatStudentName(noteModal.studentName, nameFormat, currentStudents.map(s => s.name))}
+              </p>
+              <button type="button" onClick={closeNoteModal} className="text-slate-400 hover:text-slate-600 text-lg leading-none">✕</button>
+            </div>
+            <textarea
+              autoFocus
+              rows={4}
+              value={noteText}
+              onChange={e => setNoteText(e.target.value)}
+              placeholder="What was the student struggling with?"
+              className="w-full rounded-2xl bg-slate-50 border border-slate-200 px-4 py-3 text-sm text-slate-700 placeholder-slate-400 outline-none focus:border-teal-300 resize-none"
+            />
+            <div className="flex gap-2 mt-3">
+              <button type="button" onClick={closeNoteModal} className="flex-1 py-3 rounded-2xl text-sm font-semibold text-slate-500 bg-slate-100 hover:bg-slate-200 transition-colors">Cancel</button>
+              <button type="button" onClick={saveNote} className="flex-1 py-3 rounded-2xl text-sm font-semibold text-white bg-teal-500 hover:bg-teal-600 transition-colors">Save</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

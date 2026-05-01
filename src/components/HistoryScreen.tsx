@@ -53,12 +53,13 @@ export default function HistoryScreen(props: any) {
               ) : (
                 <div className="flex flex-col gap-2">
                   {studentHistoryRows.map((row: any, i: number) => (
-                    <div key={i} className="bg-white rounded-2xl px-4 py-3 shadow-sm flex items-center justify-between">
-                      <div>
+                    <div key={i} className="bg-white rounded-2xl px-4 py-3 shadow-sm flex items-start justify-between gap-3">
+                      <div className="min-w-0">
                         <p className="text-sm font-semibold text-slate-700">{row.lesson_title}</p>
                         <p className="text-xs text-slate-400 mt-0.5">{formatDate(row.date)} · {row.class_name}</p>
+                        {row.note && <p className="text-xs text-indigo-500 mt-1 italic">{row.note}</p>}
                       </div>
-                      <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${STATUS_PILL[row.status as keyof typeof STATUS_PILL]}`}>{STATUS_LABEL[row.status as keyof typeof STATUS_LABEL]}</span>
+                      <span className={`text-xs font-semibold px-2.5 py-1 rounded-full shrink-0 ${STATUS_PILL[row.status as keyof typeof STATUS_PILL]}`}>{STATUS_LABEL[row.status as keyof typeof STATUS_LABEL]}</span>
                     </div>
                   ))}
                 </div>
@@ -101,9 +102,12 @@ export default function HistoryScreen(props: any) {
               ) : (
                 <div className="flex flex-col gap-2">
                   {lessonDetail.sort((a: any, b: any) => a.student_name.localeCompare(b.student_name)).map((row: any, i: number) => (
-                    <div key={i} className="bg-white rounded-2xl px-4 py-3 shadow-sm flex items-center justify-between">
-                      <p className="text-sm font-semibold text-slate-700">{formatStudentName(row.student_name, nameFormat, historyStudents.map((s: any) => s.name))}</p>
-                      <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${STATUS_PILL[row.status as keyof typeof STATUS_PILL]}`}>{STATUS_LABEL[row.status as keyof typeof STATUS_LABEL]}</span>
+                    <div key={i} className="bg-white rounded-2xl px-4 py-3 shadow-sm flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-slate-700">{formatStudentName(row.student_name, nameFormat, historyStudents.map((s: any) => s.name))}</p>
+                        {row.note && <p className="text-xs text-indigo-500 mt-0.5 italic">{row.note}</p>}
+                      </div>
+                      <span className={`text-xs font-semibold px-2.5 py-1 rounded-full shrink-0 ${STATUS_PILL[row.status as keyof typeof STATUS_PILL]}`}>{STATUS_LABEL[row.status as keyof typeof STATUS_LABEL]}</span>
                     </div>
                   ))}
                 </div>
