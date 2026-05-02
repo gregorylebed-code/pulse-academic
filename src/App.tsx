@@ -30,21 +30,27 @@ type HistoryRow = { class_id: string; class_name: string; student_id: string; st
 const STATUS_CYCLE: Status[] = ['got-it', 'almost', 'needs-help']
 
 const STATUS_RING: Record<Status, string> = {
-  'got-it':     'ring-4 ring-emerald-400',
-  'almost':     'ring-4 ring-yellow-400',
-  'needs-help': 'ring-4 ring-red-400',
+  'got-it':     'ring-[3px] ring-emerald-400',
+  'almost':     'ring-[3px] ring-yellow-400',
+  'needs-help': 'ring-[3px] ring-red-400',
 }
 
 const STATUS_INITIAL_BG: Record<Status, string> = {
-  'got-it':     'bg-emerald-100 text-emerald-700',
-  'almost':     'bg-yellow-100 text-yellow-700',
-  'needs-help': 'bg-red-100 text-red-600',
+  'got-it':     'bg-[#1a2a1e] text-white',
+  'almost':     'bg-[#2a2310] text-white',
+  'needs-help': 'bg-[#2a1a1a] text-white',
 }
 
 const STATUS_DOT: Record<Status, string> = {
   'got-it':     'bg-emerald-400',
   'almost':     'bg-yellow-400',
   'needs-help': 'bg-red-400',
+}
+
+const STATUS_CARD: Record<Status, string> = {
+  'got-it':     'bg-[#111c14] border border-emerald-900/60',
+  'almost':     'bg-[#1c1a0e] border border-yellow-900/60',
+  'needs-help': 'bg-[#1c1010] border border-red-900/60',
 }
 
 const STATUS_LABEL: Record<Status, string> = {
@@ -1128,7 +1134,7 @@ async function handleSuggestExitTicket() {
     skipDay, setSavedPlan, fileInputRef, handleFileUpload, planText, setPlanText, planError, handleSavePlan, planLoading, planSaved,
     activeLesson, isDemo, handleSuggestExitTicket, exitTicketLoading, setActiveLesson, setLessonInput, setExitTickets, setActiveExitTicket, setShowExitTickets,
     activeSubject, setLessonInputExternal: setLessonInput, startLessonByTitle, formatDate, lessonInput, startLesson, DEMO_LESSONS, selectedClassId,
-    showExitTickets, activeExitTicket, exitTickets, currentStudents, loading, studentStatuses, formatStudentName, nameFormat, STATUS_DOT, STATUS_INITIAL_BG, STATUS_RING, tap, confirmAllGotIt,
+    showExitTickets, activeExitTicket, exitTickets, currentStudents, loading, studentStatuses, formatStudentName, nameFormat, STATUS_DOT, STATUS_INITIAL_BG, STATUS_RING, STATUS_CARD, tap, confirmAllGotIt,
     historyTab, setHistoryTab, setSelectedStudentId, setSelectedLesson, classes, setHistoryClassId, historyClassId, classLabel,
     historyLoading, selectedStudentId, historyStudents, studentHistoryRows, STATUS_PILL, STATUS_LABEL,
     filteredHistory, selectedLesson, lessonDetail, lessonGroups,

@@ -3,7 +3,7 @@ export default function TrackerScreen(props: any) {
   const {
     activeLesson, isDemo, handleSuggestExitTicket, exitTicketLoading, setActiveLesson, setLessonInput, setExitTickets, setActiveExitTicket, setShowExitTickets,
     activeSubject, savedPlan, setLessonInputExternal, startLessonByTitle, formatDate, lessonInput, startLesson, DEMO_LESSONS, selectedClassId,
-    showExitTickets, activeExitTicket, exitTickets, currentStudents, loading, studentStatuses, formatStudentName, nameFormat, STATUS_DOT, STATUS_INITIAL_BG, STATUS_RING, tap, confirmAllGotIt,
+    showExitTickets, activeExitTicket, exitTickets, currentStudents, loading, studentStatuses, formatStudentName, nameFormat, STATUS_INITIAL_BG, STATUS_RING, STATUS_CARD, tap, confirmAllGotIt,
     openProfile, checkinNotes, onCirclePointerDown, onCirclePointerUp, onCirclePointerCancel,
   } = props
 
@@ -133,14 +133,14 @@ export default function TrackerScreen(props: any) {
               const almost = currentStudents.filter((s: any) => studentStatuses[s.id] === 'almost').length
               const needsHelp = currentStudents.filter((s: any) => studentStatuses[s.id] === 'needs-help').length
               return (
-                <div className="flex items-center justify-between mb-3 bg-white rounded-2xl px-4 py-2.5 shadow-sm">
+                <div className="flex items-center justify-between mb-3 bg-[#111c14] border border-emerald-900/40 rounded-2xl px-4 py-2.5">
                   <div className="flex items-center gap-4 text-xs font-semibold">
-                    <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-emerald-400" /><span className="text-emerald-700">{gotIt} Got It</span></span>
-                    <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-yellow-400" /><span className="text-yellow-700">{almost} Almost</span></span>
-                    <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-red-400" /><span className="text-red-600">{needsHelp} Needs Help</span></span>
+                    <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-emerald-400" /><span className="text-emerald-400">{gotIt} Got It</span></span>
+                    <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-yellow-400" /><span className="text-yellow-400">{almost} Almost</span></span>
+                    <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-red-400" /><span className="text-red-400">{needsHelp} Needs Help</span></span>
                   </div>
                   {!isDemo && gotIt > 0 && (
-                    <button type="button" onClick={confirmAllGotIt} className="text-xs font-semibold px-3 py-1.5 bg-slate-100 text-slate-600 rounded-xl hover:bg-emerald-50 hover:text-emerald-700 transition-colors shrink-0">
+                    <button type="button" onClick={confirmAllGotIt} className="text-xs font-semibold px-3 py-1.5 bg-emerald-900/40 text-emerald-400 rounded-xl hover:bg-emerald-900/60 transition-colors shrink-0">
                       ✓ Save All Got It
                     </button>
                   )}
@@ -155,9 +155,8 @@ export default function TrackerScreen(props: any) {
               return (
                 <div
                   key={student.id}
-                  className="flex flex-col items-center gap-1 bg-white rounded-xl py-2 px-1 shadow-sm relative"
+                  className={`flex flex-col items-center gap-1.5 rounded-xl py-3 px-1 relative ${STATUS_CARD[status as keyof typeof STATUS_CARD]}`}
                 >
-                  <span className={`absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full ${STATUS_DOT[status as keyof typeof STATUS_DOT]}`} />
                   <button
                     type="button"
                     onClick={() => tap(student.id)}
@@ -166,17 +165,17 @@ export default function TrackerScreen(props: any) {
                     onPointerLeave={onCirclePointerCancel}
                     onPointerCancel={onCirclePointerCancel}
                     onContextMenu={(e) => e.preventDefault()}
-                    className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold active:scale-95 transition-transform select-none touch-manipulation ${STATUS_INITIAL_BG[status as keyof typeof STATUS_INITIAL_BG]} ${STATUS_RING[status as keyof typeof STATUS_RING]}`}
+                    className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold active:scale-95 transition-transform select-none touch-manipulation ${STATUS_INITIAL_BG[status as keyof typeof STATUS_INITIAL_BG]} ${STATUS_RING[status as keyof typeof STATUS_RING]}`}
                   >
                     {initial}
                   </button>
                   {checkinNotes[student.id] && (
-                    <span className="absolute bottom-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-indigo-400" title="Has note" />
+                    <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-indigo-400" title="Has note" />
                   )}
                   <button
                     type="button"
                     onClick={() => openProfile(student.id, student.name)}
-                    className="text-[10px] font-bold text-slate-700 leading-tight text-center px-0.5 truncate w-full hover:text-teal-600 transition-colors"
+                    className="text-[10px] font-bold text-slate-300 leading-tight text-center px-0.5 truncate w-full hover:text-white transition-colors"
                   >
                     {displayName}
                   </button>
