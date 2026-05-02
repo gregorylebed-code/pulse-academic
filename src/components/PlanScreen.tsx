@@ -1,9 +1,10 @@
-import { PlanScreenProps } from '../types'
+import type { PlanScreenProps } from '../types'
 import type { WeekSchedule, DayLesson } from '../lib/groq'
 
 interface ExtraProps extends PlanScreenProps {
   formatWeek: (weekStart: string) => string
   weekStart: string
+  subjectChoices: string[]
   confirmSubjects: () => void
   DAYS: string[]
   getDateForDayOffset: (offset: number) => string

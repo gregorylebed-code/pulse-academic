@@ -1,4 +1,4 @@
-import { ReportsScreenProps, AppClass, ReportClass, ReportStudent } from '../types'
+import type { ReportsScreenProps, AppClass, ReportClass, ReportStudent } from '../types'
 
 interface ExtraProps extends ReportsScreenProps {
   classLabel: (cls: AppClass) => string

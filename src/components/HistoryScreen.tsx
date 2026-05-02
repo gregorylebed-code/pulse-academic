@@ -1,4 +1,4 @@
-import { HistoryScreenProps, AppClass, AppStudent, HistoryRow, Status } from '../types'
+import type { HistoryScreenProps, AppClass, AppStudent, HistoryRow, Status } from '../types'
 
 interface ExtraProps extends HistoryScreenProps {
   classLabel: (cls: AppClass) => string

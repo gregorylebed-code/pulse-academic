@@ -13,7 +13,7 @@ import ReportsScreen from './components/ReportsScreen'
 import RosterScreen from './components/RosterScreen'
 import StudentProfileSheet from './components/StudentProfileSheet'
 
-import { Status, Screen, HistoryTab, NameFormat, AppClass, AppStudent, AppLesson, HistoryRow, SavedPlan, ReportClass, ReportRange } from './types'
+import type { Status, Screen, HistoryTab, NameFormat, AppClass, AppStudent, AppLesson, HistoryRow, SavedPlan, ReportClass, ReportRange, ReportStudent } from './types'
 
 // ── Constants ─────────────────────────────────────────────────────────────
 
@@ -420,7 +420,7 @@ export default function App({ userId, isDemo = false, onSignOut }: Props) {
         if (row.note?.trim()) student.notes.push({ date: row.date, lessonTitle: row.lesson_title, text: row.note.trim() })
       }
 
-      const all = [...studentMap.values()].map(s => ({
+      const all: ReportStudent[] = [...studentMap.values()].map(s => ({
         ...s,
         lessons: s.lessons.sort((a, b) => b.date.localeCompare(a.date)),
         notes: s.notes.sort((a, b) => b.date.localeCompare(a.date)),
@@ -1122,6 +1122,7 @@ async function handleSuggestExitTicket() {
     activeLesson, isDemo, handleSuggestExitTicket, exitTicketLoading, setActiveLesson, setLessonInput, setExitTickets, setActiveExitTicket, setShowExitTickets,
     activeSubject, setLessonInputExternal: setLessonInput, startLessonByTitle, formatDate, lessonInput, startLesson, DEMO_LESSONS, selectedClassId,
     showExitTickets, activeExitTicket, exitTickets, currentStudents, loading, studentStatuses, formatStudentName, nameFormat, STATUS_DOT, STATUS_INITIAL_BG, STATUS_RING, STATUS_CARD, tap, confirmAllGotIt,
+    historyData,
     historyTab, setHistoryTab, setSelectedStudentId, setSelectedLesson, classes, setHistoryClassId, historyClassId, classLabel,
     historyLoading, selectedStudentId, historyStudents, studentHistoryRows, STATUS_PILL, STATUS_LABEL,
     filteredHistory, selectedLesson, lessonDetail, lessonGroups,

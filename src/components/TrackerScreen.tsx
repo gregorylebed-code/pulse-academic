@@ -1,5 +1,5 @@
-import { TrackerScreenProps, AppStudent } from '../types'
-import { DemoLesson } from '../lib/demo'
+import type { TrackerScreenProps, AppStudent } from '../types'
+import type { DemoLesson } from '../lib/demo'
 import type { DayLesson } from '../lib/groq'
 
 export default function TrackerScreen(props: TrackerScreenProps) {

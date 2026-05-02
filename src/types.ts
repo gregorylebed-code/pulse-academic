@@ -1,5 +1,5 @@
-import { DayLesson, WeekSchedule, ExitTicket } from './lib/groq'
-import { DemoLesson } from './lib/demo'
+import type { DayLesson, WeekSchedule, ExitTicket } from './lib/groq'
+import type { DemoLesson } from './lib/demo'
 
 export type Status = 'got-it' | 'almost' | 'needs-help'
 export type ReportRange = 'today' | 'week' | 'month' | 'custom' | 'all'
@@ -180,14 +180,14 @@ export interface PlanScreenProps {
   handleFileUpload: (e: React.ChangeEvent<HTMLInputElement>) => void
   planText: string
   setPlanText: (val: string) => void
-  generatePlan: () => void
+  generatePlan?: () => void
   pendingSchedule: WeekSchedule | null
   setPendingSchedule: (val: WeekSchedule | null) => void
   setSubjectChoices: (val: string[]) => void
   setSavedPlan: (val: SavedPlan | null) => void
   classes: AppClass[]
   selectedClassId: string
-  savePlan: (schedule: WeekSchedule, tracked: string[]) => void
+  savePlan?: (schedule: WeekSchedule, tracked: string[]) => void
   planSaving: boolean
   planSaved: boolean
   expandedDay: string | null
@@ -199,16 +199,16 @@ export interface PlanScreenProps {
   editDraft: DayLesson | null
   setEditDraft: (lesson: DayLesson | null) => void
   undoSnapshot: WeekSchedule | null
-  undoPlanChange: () => void
+  undoPlanChange?: () => void
   swapSource: string | null
   setSwapSource: (val: string | null) => void
-  swapDay: (target: string) => void
+  swapDay?: (target: string) => void
   skipConfirmDay: string | null
   setSkipConfirmDay: (day: string | null) => void
-  skipDay: (day: string) => void
+  skipDay: (day: string, pushRemaining?: boolean) => void
   swapSubjectSource: { dateISO: string; subject: string } | null
   setSwapSubjectSource: (val: { dateISO: string; subject: string } | null) => void
-  swapSubject: (targetDate: string, targetSubject: string) => void
+  swapSubject?: (targetDate: string, targetSubject: string) => void
   skipConfirmSubject: { dateISO: string; subject: string } | null
   setSkipConfirmSubject: (val: { dateISO: string; subject: string } | null) => void
   skipSubject: (date: string, subject: string) => void

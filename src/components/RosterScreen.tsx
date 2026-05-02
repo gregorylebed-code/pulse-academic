@@ -1,4 +1,4 @@
-import { RosterScreenProps, AppClass, AppStudent, NameFormat, Screen } from '../types'
+import type { RosterScreenProps, AppClass, AppStudent, NameFormat, Screen } from '../types'
 
 interface ExtraProps extends RosterScreenProps {
   SUBJECTS: string[]
