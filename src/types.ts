@@ -211,6 +211,6 @@ export interface PlanScreenProps {
   swapSubject?: (targetDate: string, targetSubject: string) => void
   skipConfirmSubject: { dateISO: string; subject: string } | null
   setSkipConfirmSubject: (val: { dateISO: string; subject: string } | null) => void
-  skipSubject: (date: string, subject: string) => void
+  skipSubject: (date: string, subject: string, pushRemaining: boolean) => void
   formatDate: (iso: string) => string
 }
