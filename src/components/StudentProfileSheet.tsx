@@ -62,32 +62,33 @@ export default function StudentProfileSheet({ studentId, studentName, historyDat
     <>
       {/* Backdrop */}
       <div
-        className="fixed inset-0 z-40 bg-black/30"
+        className="fixed inset-0 z-40 bg-black/60"
         onClick={onClose}
       />
 
       {/* Sheet */}
-      <div className="fixed bottom-0 left-0 right-0 z-50 rounded-t-3xl bg-white shadow-2xl px-5 pt-5 pb-8 max-h-[80vh] overflow-y-auto">
+      <div className="fixed bottom-0 left-0 right-0 z-50 rounded-t-3xl shadow-2xl px-5 pt-5 pb-8 max-h-[80vh] overflow-y-auto" style={{ background: '#161618' }}>
         {/* Handle */}
-        <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-slate-200" />
+        <div className="mx-auto mb-4 h-1 w-10 rounded-full" style={{ background: 'rgba(255,255,255,0.15)' }} />
 
         {/* Header */}
         <div className="flex items-center justify-between mb-5">
           <div>
-            <h2 className="text-lg font-bold text-slate-800">{studentName}</h2>
-            <p className="text-xs text-slate-400 mt-0.5">{rows.length} check-in{rows.length !== 1 ? 's' : ''} across {subjectStats.length} subject{subjectStats.length !== 1 ? 's' : ''}</p>
+            <h2 className="text-lg font-bold" style={{ color: '#f0f0f2' }}>{studentName}</h2>
+            <p className="text-xs mt-0.5" style={{ color: '#5a5a6a' }}>{rows.length} check-in{rows.length !== 1 ? 's' : ''} across {subjectStats.length} subject{subjectStats.length !== 1 ? 's' : ''}</p>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="text-slate-400 hover:text-slate-600 text-xl leading-none px-2"
+            className="text-xl leading-none px-2 hover:text-white transition-colors"
+            style={{ color: '#5a5a6a' }}
           >
             ✕
           </button>
         </div>
 
         {subjectStats.length === 0 ? (
-          <p className="text-sm text-slate-400 text-center py-8">No check-in data yet for {firstName}.</p>
+          <p className="text-sm text-center py-8" style={{ color: '#5a5a6a' }}>No check-in data yet for {firstName}.</p>
         ) : (
           <div className="flex flex-col gap-4">
             {subjectStats.map(({ label, gotIt, almost, needsHelp, total }) => {
@@ -97,12 +98,12 @@ export default function StudentProfileSheet({ studentId, studentName, historyDat
               return (
                 <div key={label}>
                   <div className="flex items-center justify-between mb-1.5">
-                    <span className="text-sm font-semibold text-slate-700">{label}</span>
-                    <span className="text-xs text-slate-400">{total} session{total !== 1 ? 's' : ''}</span>
+                    <span className="text-sm font-semibold" style={{ color: '#f0f0f2' }}>{label}</span>
+                    <span className="text-xs" style={{ color: '#5a5a6a' }}>{total} session{total !== 1 ? 's' : ''}</span>
                   </div>
 
                   {/* Stacked bar */}
-                  <div className="h-5 w-full rounded-full overflow-hidden flex bg-slate-100">
+                  <div className="h-5 w-full rounded-full overflow-hidden flex" style={{ background: 'rgba(255,255,255,0.08)' }}>
                     {gotIt > 0 && (
                       <div
                         className="h-full bg-emerald-400 transition-all"
@@ -126,19 +127,19 @@ export default function StudentProfileSheet({ studentId, studentName, historyDat
                   {/* Legend counts */}
                   <div className="flex gap-3 mt-1.5">
                     {gotIt > 0 && (
-                      <span className="text-xs font-semibold text-emerald-700 flex items-center gap-1">
+                      <span className="text-xs font-semibold text-emerald-400 flex items-center gap-1">
                         <span className="w-2 h-2 rounded-full bg-emerald-400 inline-block" />
                         {gotIt} Got It
                       </span>
                     )}
                     {almost > 0 && (
-                      <span className="text-xs font-semibold text-yellow-700 flex items-center gap-1">
+                      <span className="text-xs font-semibold text-yellow-400 flex items-center gap-1">
                         <span className="w-2 h-2 rounded-full bg-yellow-400 inline-block" />
                         {almost} Almost
                       </span>
                     )}
                     {needsHelp > 0 && (
-                      <span className="text-xs font-semibold text-red-600 flex items-center gap-1">
+                      <span className="text-xs font-semibold text-red-400 flex items-center gap-1">
                         <span className="w-2 h-2 rounded-full bg-red-400 inline-block" />
                         {needsHelp} Needs Help
                       </span>

@@ -36,36 +36,38 @@ export default function AuthScreen({ onDemo }: Props) {
     }
   }
 
+  const inputStyle = { background: '#1e1e22', borderColor: 'rgba(255,255,255,0.1)', color: '#f0f0f2' }
+
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center px-5" style={{ background: '#f5f0e8' }}>
+    <div className="min-h-screen flex flex-col items-center justify-center px-5" style={{ background: '#0d0d0f' }}>
       <div className="w-full max-w-sm">
         {/* Logo */}
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-slate-800">Pulse</h1>
-          <p className="text-sm text-slate-400 mt-1">Academic Tracker</p>
+          <h1 className="text-3xl font-bold" style={{ color: '#f0f0f2' }}>Pulse</h1>
+          <p className="text-sm mt-1" style={{ color: '#5a5a6a' }}>Academic Tracker</p>
         </div>
 
         {confirmSent ? (
-          <div className="bg-white rounded-2xl shadow-sm px-6 py-8 text-center">
+          <div className="rounded-2xl px-6 py-8 text-center" style={{ background: '#161618', border: '1px solid rgba(255,255,255,0.07)' }}>
             <p className="text-2xl mb-3">📬</p>
-            <h2 className="text-base font-bold text-slate-800 mb-2">Check your email</h2>
-            <p className="text-sm text-slate-500">We sent a confirmation link to <span className="font-semibold text-slate-700">{email}</span>. Click it to activate your account, then come back and log in.</p>
+            <h2 className="text-base font-bold mb-2" style={{ color: '#f0f0f2' }}>Check your email</h2>
+            <p className="text-sm" style={{ color: '#8b8b9a' }}>We sent a confirmation link to <span className="font-semibold" style={{ color: '#f0f0f2' }}>{email}</span>. Click it to activate your account, then come back and log in.</p>
             <button
               type="button"
               onClick={() => { setConfirmSent(false); setMode('login') }}
-              className="mt-5 text-sm font-semibold text-teal-600 hover:text-teal-700"
+              className="mt-5 text-sm font-semibold text-teal-400 hover:text-teal-300"
             >
               Back to log in
             </button>
           </div>
         ) : (
-          <div className="bg-white rounded-2xl shadow-sm px-6 py-6">
-            <h2 className="text-base font-bold text-slate-800 mb-5">
+          <div className="rounded-2xl px-6 py-6" style={{ background: '#161618', border: '1px solid rgba(255,255,255,0.07)' }}>
+            <h2 className="text-base font-bold mb-5" style={{ color: '#f0f0f2' }}>
               {mode === 'login' ? 'Log in to your account' : 'Create your account'}
             </h2>
             <form onSubmit={handleSubmit} className="flex flex-col gap-3">
               <div>
-                <label className="text-xs font-semibold text-slate-500 block mb-1">Email</label>
+                <label className="text-xs font-semibold block mb-1" style={{ color: '#8b8b9a' }}>Email</label>
                 <input
                   type="email"
                   value={email}
@@ -73,11 +75,12 @@ export default function AuthScreen({ onDemo }: Props) {
                   required
                   autoComplete="email"
                   placeholder="you@school.edu"
-                  className="w-full text-sm bg-slate-50 rounded-xl px-4 py-2.5 outline-none border border-slate-100 focus:border-teal-300 text-slate-700 placeholder-slate-300"
+                  className="w-full text-sm rounded-xl px-4 py-2.5 outline-none border focus:border-teal-500"
+                  style={inputStyle}
                 />
               </div>
               <div>
-                <label className="text-xs font-semibold text-slate-500 block mb-1">Password</label>
+                <label className="text-xs font-semibold block mb-1" style={{ color: '#8b8b9a' }}>Password</label>
                 <input
                   type="password"
                   value={password}
@@ -85,10 +88,11 @@ export default function AuthScreen({ onDemo }: Props) {
                   required
                   autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
                   placeholder={mode === 'signup' ? 'At least 6 characters' : ''}
-                  className="w-full text-sm bg-slate-50 rounded-xl px-4 py-2.5 outline-none border border-slate-100 focus:border-teal-300 text-slate-700 placeholder-slate-300"
+                  className="w-full text-sm rounded-xl px-4 py-2.5 outline-none border focus:border-teal-500"
+                  style={inputStyle}
                 />
               </div>
-              {error && <p className="text-xs text-red-500 font-semibold">{error}</p>}
+              {error && <p className="text-xs text-red-400 font-semibold">{error}</p>}
               <button
                 type="submit"
                 disabled={loading}
@@ -102,7 +106,8 @@ export default function AuthScreen({ onDemo }: Props) {
               <button
                 type="button"
                 onClick={() => { setMode(mode === 'login' ? 'signup' : 'login'); setError('') }}
-                className="text-xs text-slate-400 hover:text-teal-600 font-semibold"
+                className="text-xs font-semibold hover:text-teal-400 transition-colors"
+                style={{ color: '#5a5a6a' }}
               >
                 {mode === 'login' ? "Don't have an account? Sign up" : 'Already have an account? Log in'}
               </button>
@@ -112,11 +117,12 @@ export default function AuthScreen({ onDemo }: Props) {
 
         {/* Demo */}
         <div className="mt-5 text-center">
-          <p className="text-xs text-slate-400 mb-2">Just browsing?</p>
+          <p className="text-xs mb-2" style={{ color: '#5a5a6a' }}>Just browsing?</p>
           <button
             type="button"
             onClick={onDemo}
-            className="text-sm font-semibold text-teal-600 hover:text-teal-700 bg-white rounded-2xl px-6 py-2.5 shadow-sm"
+            className="text-sm font-semibold text-teal-400 hover:text-teal-300 rounded-2xl px-6 py-2.5"
+            style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.07)' }}
           >
             Try the demo →
           </button>

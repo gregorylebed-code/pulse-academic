@@ -60,9 +60,9 @@ const STATUS_LABEL: Record<Status, string> = {
 }
 
 const STATUS_PILL: Record<Status, string> = {
-  'got-it':     'bg-emerald-100 text-emerald-700',
-  'almost':     'bg-yellow-100 text-yellow-700',
-  'needs-help': 'bg-red-100 text-red-600',
+  'got-it':     'bg-emerald-900/40 text-emerald-400',
+  'almost':     'bg-yellow-900/40 text-yellow-400',
+  'needs-help': 'bg-red-900/40 text-red-400',
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────
@@ -1119,9 +1119,9 @@ async function handleSuggestExitTicket() {
 
   if (dataLoading) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center gap-3" style={{ background: '#f5f0e8' }}>
+      <div className="min-h-screen flex flex-col items-center justify-center gap-3" style={{ background: '#0d0d0f' }}>
         <svg className="animate-spin h-8 w-8 text-teal-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
-        <p className="text-slate-400 text-sm">Loading…</p>
+        <p className="text-sm" style={{ color: '#8b8b9a' }}>Loading…</p>
       </div>
     )
   }
@@ -1154,16 +1154,16 @@ async function handleSuggestExitTicket() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col overflow-x-hidden pb-20" style={{ background: '#f5f0e8' }}>
+    <div className="min-h-screen flex flex-col overflow-x-hidden pb-20" style={{ background: '#0d0d0f' }}>
       {/* Header */}
-      <header className="bg-white/95 shadow-sm shadow-slate-200/70 backdrop-blur">
+      <header style={{ background: '#111113', borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
         <div className="px-4 py-4 sm:px-5 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
           <div className="flex items-center gap-2">
-            <h1 className="text-xl font-bold text-slate-800 leading-none">Pulse</h1>
-            {isDemo && <span className="text-xs font-semibold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">Demo</span>}
+            <h1 className="text-xl font-bold leading-none" style={{ color: '#f0f0f2' }}>Pulse</h1>
+            {isDemo && <span className="text-xs font-semibold text-amber-400 bg-amber-900/40 px-2 py-0.5 rounded-full">Demo</span>}
           </div>
-          <p className="text-xs text-slate-400 mt-0.5">Academic Tracker</p>
+          <p className="text-xs mt-0.5" style={{ color: '#5a5a6a' }}>Academic Tracker</p>
         </div>
         <div className="min-w-0">
           <div className="hidden flex-wrap items-center gap-2 pb-0.5 sm:flex sm:flex-nowrap sm:justify-end sm:overflow-x-auto sm:scrollbar-none">
@@ -1171,7 +1171,8 @@ async function handleSuggestExitTicket() {
               <button
                 type="button"
                 onClick={() => { setScreen('plan'); setSelectedStudentId(null); setSelectedLesson(null) }}
-                className={`rounded-xl px-3 py-2 text-sm font-semibold transition-colors ${screen === 'plan' ? 'bg-teal-50 text-teal-700' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700'}`}
+                className={`rounded-xl px-3 py-2 text-sm font-semibold transition-colors ${screen === 'plan' ? 'bg-teal-900/50 text-teal-400' : 'hover:bg-white/5'}`}
+                style={screen !== 'plan' ? { color: '#8b8b9a' } : {}}
               >
                 Week Plan
               </button>
@@ -1183,7 +1184,8 @@ async function handleSuggestExitTicket() {
                 setSelectedStudentId(null)
                 setSelectedLesson(null)
               }}
-              className={`rounded-xl px-3 py-2 text-sm font-semibold transition-colors ${screen === 'history' ? 'bg-teal-50 text-teal-700' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700'}`}
+              className={`rounded-xl px-3 py-2 text-sm font-semibold transition-colors ${screen === 'history' ? 'bg-teal-900/50 text-teal-400' : 'hover:bg-white/5'}`}
+              style={screen !== 'history' ? { color: '#8b8b9a' } : {}}
             >
               {screen === 'history' ? 'Done' : 'History'}
             </button>
@@ -1191,7 +1193,8 @@ async function handleSuggestExitTicket() {
               <button
                 type="button"
                 onClick={() => setScreen(screen === 'roster' ? 'tracker' : 'roster')}
-                className={`rounded-xl px-3 py-2 text-sm font-semibold transition-colors ${screen === 'roster' ? 'bg-teal-50 text-teal-700' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700'}`}
+                className={`rounded-xl px-3 py-2 text-sm font-semibold transition-colors ${screen === 'roster' ? 'bg-teal-900/50 text-teal-400' : 'hover:bg-white/5'}`}
+                style={screen !== 'roster' ? { color: '#8b8b9a' } : {}}
               >
                 {screen === 'roster' ? 'Done' : 'Roster'}
               </button>
@@ -1199,17 +1202,19 @@ async function handleSuggestExitTicket() {
             <button
               type="button"
               onClick={() => setScreen(screen === 'reports' ? 'tracker' : 'reports')}
-              className={`rounded-xl px-3 py-2 text-sm font-semibold transition-colors ${screen === 'reports' ? 'bg-teal-50 text-teal-700' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700'}`}
+              className={`rounded-xl px-3 py-2 text-sm font-semibold transition-colors ${screen === 'reports' ? 'bg-teal-900/50 text-teal-400' : 'hover:bg-white/5'}`}
+              style={screen !== 'reports' ? { color: '#8b8b9a' } : {}}
             >
               {screen === 'reports' ? 'Done' : 'Reports'}
             </button>
             {(screen === 'plan') && (
-              <button type="button" onClick={() => setScreen('tracker')} className="rounded-xl px-3 py-2 text-sm font-semibold text-slate-500 hover:bg-slate-50 hover:text-slate-700">Done</button>
+              <button type="button" onClick={() => setScreen('tracker')} className="rounded-xl px-3 py-2 text-sm font-semibold hover:bg-white/5" style={{ color: '#8b8b9a' }}>Done</button>
             )}
             <button
               type="button"
               onClick={onSignOut}
-              className="rounded-xl px-3 py-2 text-xs font-semibold text-slate-300 hover:bg-slate-50 hover:text-slate-500"
+              className="rounded-xl px-3 py-2 text-xs font-semibold hover:bg-white/5 transition-colors"
+              style={{ color: '#5a5a6a' }}
             >
               {isDemo ? 'Exit' : 'Sign out'}
             </button>
@@ -1218,7 +1223,7 @@ async function handleSuggestExitTicket() {
         </div>
         {/* Class tabs — wrapping rows */}
         {screen === 'tracker' && classes.length > 1 && (
-          <div className="border-t border-slate-100 px-3 py-3">
+          <div className="px-3 py-3" style={{ borderTop: '1px solid rgba(255,255,255,0.07)' }}>
             <div className="flex flex-wrap gap-2">
               {classes.map(cls => (
                 <button
@@ -1226,8 +1231,9 @@ async function handleSuggestExitTicket() {
                   type="button"
                   onClick={() => { setSelectedClassId(cls.id); switchSubject(cls.subject) }}
                   className={`max-w-[12.5rem] truncate px-3 py-2 rounded-2xl text-xs sm:px-4 sm:text-sm font-semibold transition-all ${
-                    selectedClassId === cls.id ? 'bg-teal-500 text-white shadow-md shadow-teal-500/20' : 'bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-800'
+                    selectedClassId === cls.id ? 'bg-teal-500 text-white shadow-md shadow-teal-500/20' : 'hover:bg-white/5'
                   }`}
+                  style={selectedClassId !== cls.id ? { background: 'rgba(255,255,255,0.06)', color: '#8b8b9a' } : {}}
                 >
                   {classLabel(cls)}
                 </button>
@@ -1243,7 +1249,7 @@ async function handleSuggestExitTicket() {
         const classHasFixedSubject = selectedClass?.subject && savedPlan?.trackedSubjects.includes(selectedClass.subject)
         return screen === 'tracker' && savedPlan && savedPlan.trackedSubjects.length > 1 && !classHasFixedSubject
       })() && (
-        <div className="bg-white border-b border-slate-100 px-4 overflow-x-auto scrollbar-none">
+        <div className="px-4 overflow-x-auto scrollbar-none" style={{ background: '#111113', borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
           <div className="flex gap-6 min-w-max">
           {savedPlan?.trackedSubjects.map(subj => (
             <button
@@ -1251,8 +1257,9 @@ async function handleSuggestExitTicket() {
               type="button"
               onClick={() => switchSubject(subj)}
               className={`px-0 py-3 text-sm font-semibold border-b-2 transition-colors ${
-                activeSubject === subj ? 'border-teal-500 text-teal-600' : 'border-transparent text-slate-400 hover:text-slate-600'
+                activeSubject === subj ? 'border-teal-500 text-teal-400' : 'border-transparent'
               }`}
+              style={activeSubject !== subj ? { color: '#5a5a6a' } : {}}
             >
               {subj}
             </button>
@@ -1272,19 +1279,20 @@ async function handleSuggestExitTicket() {
       {screen === 'roster' && <RosterScreen {...screenProps} />}
       
       {/* ── Bottom tab bar ── revert: remove this block + remove pb-20 above + change "hidden" back to "flex" on header nav div */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur border-t border-slate-200 shadow-lg z-50">
+      <nav className="fixed bottom-0 left-0 right-0 backdrop-blur z-50" style={{ background: 'rgba(17,17,19,0.97)', borderTop: '1px solid rgba(255,255,255,0.07)' }}>
         <div className="flex items-stretch h-16">
           {/* Tracker */}
           <button
             type="button"
             onClick={() => { setScreen('tracker'); setSelectedStudentId(null); setSelectedLesson(null) }}
-            className={`flex-1 flex flex-col items-center justify-center gap-0.5 text-[10px] font-semibold transition-colors relative ${screen === 'tracker' ? 'text-teal-600' : 'text-slate-400 hover:text-slate-600'}`}
+            className="flex-1 flex flex-col items-center justify-center gap-0.5 text-[10px] font-semibold transition-colors relative"
+            style={{ color: screen === 'tracker' ? '#2dd4bf' : '#5a5a6a' }}
           >
             <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <circle cx="12" cy="12" r="10" /><path d="M12 8v4l3 3" strokeLinecap="round" />
             </svg>
             Tracker
-            {screen === 'tracker' && <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-8 h-0.5 bg-teal-500 rounded-full" />}
+            {screen === 'tracker' && <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-8 h-0.5 bg-teal-400 rounded-full" />}
           </button>
 
           {/* Plan */}
@@ -1292,13 +1300,14 @@ async function handleSuggestExitTicket() {
             <button
               type="button"
               onClick={() => { setScreen('plan'); setSelectedStudentId(null); setSelectedLesson(null) }}
-              className={`flex-1 flex flex-col items-center justify-center gap-0.5 text-[10px] font-semibold transition-colors relative ${screen === 'plan' ? 'text-indigo-600' : 'text-slate-400 hover:text-slate-600'}`}
+              className="flex-1 flex flex-col items-center justify-center gap-0.5 text-[10px] font-semibold transition-colors relative"
+              style={{ color: screen === 'plan' ? '#818cf8' : '#5a5a6a' }}
             >
               <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <rect x="3" y="4" width="18" height="18" rx="2" /><path d="M16 2v4M8 2v4M3 10h18" strokeLinecap="round" />
               </svg>
               Plan
-              {screen === 'plan' && <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-8 h-0.5 bg-indigo-500 rounded-full" />}
+              {screen === 'plan' && <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-8 h-0.5 rounded-full" style={{ background: '#818cf8' }} />}
             </button>
           )}
 
@@ -1306,13 +1315,14 @@ async function handleSuggestExitTicket() {
           <button
             type="button"
             onClick={() => { setScreen('history'); setSelectedStudentId(null); setSelectedLesson(null) }}
-            className={`flex-1 flex flex-col items-center justify-center gap-0.5 text-[10px] font-semibold transition-colors relative ${screen === 'history' ? 'text-amber-600' : 'text-slate-400 hover:text-slate-600'}`}
+            className="flex-1 flex flex-col items-center justify-center gap-0.5 text-[10px] font-semibold transition-colors relative"
+            style={{ color: screen === 'history' ? '#fbbf24' : '#5a5a6a' }}
           >
             <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" strokeLinecap="round" />
             </svg>
             History
-            {screen === 'history' && <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-8 h-0.5 bg-amber-500 rounded-full" />}
+            {screen === 'history' && <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-8 h-0.5 bg-amber-400 rounded-full" />}
           </button>
 
           {/* Roster */}
@@ -1320,13 +1330,14 @@ async function handleSuggestExitTicket() {
             <button
               type="button"
               onClick={() => { setScreen('roster'); setSelectedStudentId(null); setSelectedLesson(null) }}
-              className={`flex-1 flex flex-col items-center justify-center gap-0.5 text-[10px] font-semibold transition-colors relative ${screen === 'roster' ? 'text-emerald-600' : 'text-slate-400 hover:text-slate-600'}`}
+              className="flex-1 flex flex-col items-center justify-center gap-0.5 text-[10px] font-semibold transition-colors relative"
+              style={{ color: screen === 'roster' ? '#34d399' : '#5a5a6a' }}
             >
               <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" strokeLinecap="round" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75" strokeLinecap="round" />
               </svg>
               Roster
-              {screen === 'roster' && <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-8 h-0.5 bg-emerald-500 rounded-full" />}
+              {screen === 'roster' && <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-8 h-0.5 bg-emerald-400 rounded-full" />}
             </button>
           )}
 
@@ -1334,13 +1345,14 @@ async function handleSuggestExitTicket() {
           <button
             type="button"
             onClick={() => { setScreen('reports'); setSelectedStudentId(null); setSelectedLesson(null) }}
-            className={`flex-1 flex flex-col items-center justify-center gap-0.5 text-[10px] font-semibold transition-colors relative ${screen === 'reports' ? 'text-rose-600' : 'text-slate-400 hover:text-slate-600'}`}
+            className="flex-1 flex flex-col items-center justify-center gap-0.5 text-[10px] font-semibold transition-colors relative"
+            style={{ color: screen === 'reports' ? '#fb7185' : '#5a5a6a' }}
           >
             <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path d="M9 17v-2m3 2v-4m3 4v-6M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" strokeLinecap="round" />
             </svg>
             Reports
-            {screen === 'reports' && <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-8 h-0.5 bg-rose-500 rounded-full" />}
+            {screen === 'reports' && <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-8 h-0.5 bg-rose-400 rounded-full" />}
           </button>
 
           {/* Sign out */}
@@ -1348,7 +1360,8 @@ async function handleSuggestExitTicket() {
             <button
               type="button"
               onClick={onSignOut}
-              className="flex-1 flex flex-col items-center justify-center gap-0.5 text-[10px] font-semibold text-slate-400 hover:text-slate-600 transition-colors"
+              className="flex-1 flex flex-col items-center justify-center gap-0.5 text-[10px] font-semibold transition-colors"
+              style={{ color: '#5a5a6a' }}
             >
               <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" strokeLinecap="round" strokeLinejoin="round" />
@@ -1369,13 +1382,13 @@ async function handleSuggestExitTicket() {
 
       {/* Note modal */}
       {noteModal && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 backdrop-blur-sm" onClick={closeNoteModal}>
-          <div className="w-full max-w-lg bg-white rounded-t-3xl px-5 pt-5 pb-8 shadow-xl" onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm" onClick={closeNoteModal}>
+          <div className="w-full max-w-lg rounded-t-3xl px-5 pt-5 pb-8 shadow-xl" style={{ background: '#161618' }} onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-3">
-              <p className="text-sm font-bold text-slate-800">
+              <p className="text-sm font-bold" style={{ color: '#f0f0f2' }}>
                 Note — {formatStudentName(noteModal.studentName, nameFormat, currentStudents.map(s => s.name))}
               </p>
-              <button type="button" onClick={closeNoteModal} className="text-slate-400 hover:text-slate-600 text-lg leading-none">✕</button>
+              <button type="button" onClick={closeNoteModal} className="text-lg leading-none" style={{ color: '#5a5a6a' }}>✕</button>
             </div>
             <textarea
               autoFocus
@@ -1383,10 +1396,11 @@ async function handleSuggestExitTicket() {
               value={noteText}
               onChange={e => setNoteText(e.target.value)}
               placeholder="What was the student struggling with?"
-              className="w-full rounded-2xl bg-slate-50 border border-slate-200 px-4 py-3 text-sm text-slate-700 placeholder-slate-400 outline-none focus:border-teal-300 resize-none"
+              className="w-full rounded-2xl px-4 py-3 text-sm outline-none focus:border-teal-500 resize-none border"
+              style={{ background: '#1e1e22', borderColor: 'rgba(255,255,255,0.1)', color: '#f0f0f2' }}
             />
             <div className="flex gap-2 mt-3">
-              <button type="button" onClick={closeNoteModal} className="flex-1 py-3 rounded-2xl text-sm font-semibold text-slate-500 bg-slate-100 hover:bg-slate-200 transition-colors">Cancel</button>
+              <button type="button" onClick={closeNoteModal} className="flex-1 py-3 rounded-2xl text-sm font-semibold transition-colors" style={{ background: 'rgba(255,255,255,0.07)', color: '#8b8b9a' }}>Cancel</button>
               <button type="button" onClick={saveNote} className="flex-1 py-3 rounded-2xl text-sm font-semibold text-white bg-teal-500 hover:bg-teal-600 transition-colors">Save</button>
             </div>
           </div>
