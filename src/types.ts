@@ -176,7 +176,7 @@ export interface PlanScreenProps {
   savedPlan: SavedPlan | null
   planLoading: boolean
   planError: string
-  fileInputRef: React.RefObject<HTMLInputElement>
+  fileInputRef: React.RefObject<HTMLInputElement | null>
   handleFileUpload: (e: React.ChangeEvent<HTMLInputElement>) => void
   planText: string
   setPlanText: (val: string) => void
@@ -205,7 +205,7 @@ export interface PlanScreenProps {
   swapDay?: (target: string) => void
   skipConfirmDay: string | null
   setSkipConfirmDay: (day: string | null) => void
-  skipDay: (day: string, pushRemaining?: boolean) => void
+  skipDay: (day: string, pushRemaining: boolean) => void
   swapSubjectSource: { dateISO: string; subject: string } | null
   setSwapSubjectSource: (val: { dateISO: string; subject: string } | null) => void
   swapSubject?: (targetDate: string, targetSubject: string) => void
