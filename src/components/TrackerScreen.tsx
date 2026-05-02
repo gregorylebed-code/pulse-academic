@@ -1,5 +1,8 @@
+import { TrackerScreenProps, AppStudent } from '../types'
+import { DemoLesson } from '../lib/demo'
+import type { DayLesson } from '../lib/groq'
 
-export default function TrackerScreen(props: any) {
+export default function TrackerScreen(props: TrackerScreenProps) {
   const {
     activeLesson, isDemo, handleSuggestExitTicket, exitTicketLoading, setActiveLesson, setLessonInput, setExitTickets, setActiveExitTicket, setShowExitTickets,
     activeSubject, savedPlan, setLessonInputExternal, startLessonByTitle, formatDate, lessonInput, startLesson, DEMO_LESSONS, selectedClassId,
@@ -30,7 +33,7 @@ export default function TrackerScreen(props: any) {
           const planLessons = activeSubject && savedPlan
             ? Object.entries(savedPlan.schedule)
                 .sort(([a], [b]) => a.localeCompare(b))
-                .flatMap(([date, day]: [string, any]) => day[activeSubject] ? [{ date, title: day[activeSubject].title }] : [])
+                .flatMap(([date, day]: [string, Record<string, DayLesson>]) => day[activeSubject] ? [{ date, title: day[activeSubject].title }] : [])
             : []
           return planLessons.length > 0 ? (
             <div className="w-full max-w-2xl mx-auto">
@@ -56,7 +59,7 @@ export default function TrackerScreen(props: any) {
             <div className="w-full max-w-2xl mx-auto">
               <p className="text-xs font-semibold uppercase tracking-wide mb-3" style={{ color: '#5a5a6a' }}>Pick a demo lesson</p>
               <div className="flex flex-col gap-2">
-                {DEMO_LESSONS.filter((l: any) => l.class_id === selectedClassId).map((l: any) => (
+                {DEMO_LESSONS.filter((l: DemoLesson) => l.class_id === selectedClassId).map((l: DemoLesson) => (
                   <button key={l.id} type="button"
                     onClick={() => { setLessonInputExternal(l.title); startLessonByTitle(l.title, l.date) }}
                     className="group text-left px-4 py-3 rounded-2xl text-sm font-semibold flex items-center justify-between gap-4 transition-colors hover:bg-teal-900/30"
@@ -100,7 +103,7 @@ export default function TrackerScreen(props: any) {
                 <button type="button" onClick={() => setShowExitTickets(false)} className="text-xs" style={{ color: '#5a5a6a' }}>✕</button>
               </div>
               <div className="flex flex-col gap-1.5">
-                {exitTickets.map((t: any, i: number) => (
+                {exitTickets.map((t, i: number) => (
                   <button key={i} type="button" onClick={() => setActiveExitTicket(t)} className="text-left rounded-xl px-3 py-2.5 hover:bg-amber-900/30 transition-colors" style={{ background: 'rgba(255,255,255,0.05)' }}>
                     <p className="text-sm font-semibold" style={{ color: '#f0f0f2' }}>{t.title}</p>
                     <p className="text-xs mt-0.5" style={{ color: '#8b8b9a' }}>{t.description}</p>
@@ -131,9 +134,9 @@ export default function TrackerScreen(props: any) {
         ) : (
           <>
             {activeLesson && currentStudents.length > 0 && (() => {
-              const gotIt = currentStudents.filter((s: any) => (studentStatuses[s.id] ?? 'got-it') === 'got-it').length
-              const almost = currentStudents.filter((s: any) => studentStatuses[s.id] === 'almost').length
-              const needsHelp = currentStudents.filter((s: any) => studentStatuses[s.id] === 'needs-help').length
+              const gotIt = currentStudents.filter((s: AppStudent) => (studentStatuses[s.id] ?? 'got-it') === 'got-it').length
+              const almost = currentStudents.filter((s: AppStudent) => studentStatuses[s.id] === 'almost').length
+              const needsHelp = currentStudents.filter((s: AppStudent) => studentStatuses[s.id] === 'needs-help').length
               return (
                 <div className="flex items-center justify-between mb-3 bg-[#111c14] border border-emerald-900/40 rounded-2xl px-4 py-2.5">
                   <div className="flex items-center gap-4 text-xs font-semibold">
@@ -150,10 +153,10 @@ export default function TrackerScreen(props: any) {
               )
             })()}
           <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-2">
-            {currentStudents.map((student: any) => {
+            {currentStudents.map((student: AppStudent) => {
               const status = studentStatuses[student.id] ?? 'got-it'
               const initial = student.name.trim()[0].toUpperCase()
-              const displayName = formatStudentName(student.name, nameFormat, currentStudents.map((s: any) => s.name))
+              const displayName = formatStudentName(student.name, nameFormat, currentStudents.map((s: AppStudent) => s.name))
               return (
                 <div
                   key={student.id}

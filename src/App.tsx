@@ -13,17 +13,7 @@ import ReportsScreen from './components/ReportsScreen'
 import RosterScreen from './components/RosterScreen'
 import StudentProfileSheet from './components/StudentProfileSheet'
 
-// ── Types ──────────────────────────────────────────────────────────────────
-
-type Status = 'got-it' | 'almost' | 'needs-help'
-type Screen = 'tracker' | 'history' | 'plan' | 'roster' | 'reports'
-type HistoryTab = 'student' | 'lesson'
-type NameFormat = 'full' | 'first' | 'initials'
-
-type AppClass = { id: string; name: string; subject: string; display_order: number }
-type AppStudent = { id: string; name: string }
-type AppLesson = { id: string; class_id: string; date: string; title: string; objective?: string }
-type HistoryRow = { class_id: string; class_name: string; student_id: string; student_name: string; lesson_id: string; lesson_title: string; date: string; status: string; note?: string }
+import { Status, Screen, HistoryTab, NameFormat, AppClass, AppStudent, AppLesson, HistoryRow, SavedPlan, ReportClass, ReportRange } from './types'
 
 // ── Constants ─────────────────────────────────────────────────────────────
 
@@ -201,7 +191,7 @@ export default function App({ userId, isDemo = false, onSignOut }: Props) {
   const [planText, setPlanText] = useState('')
   const [planLoading, setPlanLoading] = useState(false)
   const [planError, setPlanError] = useState('')
-  const [savedPlan, setSavedPlan] = useState<{ weekStart: string; schedule: WeekSchedule; trackedSubjects: string[]; planId?: string } | null>(null)
+  const [savedPlan, setSavedPlan] = useState<SavedPlan | null>(null)
   const [expandedDay, setExpandedDay] = useState<string | null>(null)
   const [editingDay, setEditingDay] = useState<string | null>(null)
   const [editSubject, setEditSubject] = useState<string | null>(null)
@@ -383,7 +373,6 @@ export default function App({ userId, isDemo = false, onSignOut }: Props) {
   }
 
   // Reports
-  type ReportRange = 'today' | 'week' | 'month' | 'custom' | 'all'
   const [reportClassId, setReportClassId] = useState<string>('all')
   const [reportRange, setReportRange] = useState<ReportRange>('today')
   const [reportCustomStart, setReportCustomStart] = useState('')
@@ -405,8 +394,6 @@ export default function App({ userId, isDemo = false, onSignOut }: Props) {
     return null // 'all'
   }
 
-  type ReportStudent = { id: string; name: string; lessons: { title: string; date: string; status: 'needs-help' | 'almost' }[]; notes: { date: string; lessonTitle: string; text: string }[] }
-  type ReportClass = { classId: string; className: string; needsSupport: ReportStudent[]; checkIn: ReportStudent[] }
 
   const reportData: ReportClass[] = useMemo(() => {
     const bounds = reportDateBounds()

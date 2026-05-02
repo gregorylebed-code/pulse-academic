@@ -1,6 +1,25 @@
+import { PlanScreenProps } from '../types'
 import type { WeekSchedule, DayLesson } from '../lib/groq'
 
-export default function PlanScreen(props: any) {
+interface ExtraProps extends PlanScreenProps {
+  formatWeek: (weekStart: string) => string
+  weekStart: string
+  confirmSubjects: () => void
+  DAYS: string[]
+  getDateForDayOffset: (offset: number) => string
+  today: string
+  saveEdit: () => void
+  handleSwap: (dateISO: string) => void
+  startEdit: (dateISO: string, subject: string) => void
+  handleSwapSubject: (dateISO: string, subject: string) => void
+  copyToNext: (dateISO: string) => void
+  skipSubject: (dateISO: string, subject: string, pushRemaining: boolean) => void
+  skipDay: (dateISO: string, pushRemaining: boolean) => void
+  handleSavePlan: () => void
+  handleUndo: () => void
+}
+
+export default function PlanScreen(props: ExtraProps) {
   const {
     formatWeek, weekStart, pendingSchedule, subjectChoices, setSubjectChoices, confirmSubjects, planSaving, setPendingSchedule,
     savedPlan, undoSnapshot, handleUndo, swapSource, setSwapSource, swapSubjectSource, setSwapSubjectSource, DAYS, getDateForDayOffset,

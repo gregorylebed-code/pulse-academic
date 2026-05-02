@@ -1,5 +1,10 @@
+import { ReportsScreenProps, AppClass, ReportClass, ReportStudent } from '../types'
 
-export default function ReportsScreen(props: any) {
+interface ExtraProps extends ReportsScreenProps {
+  classLabel: (cls: AppClass) => string
+}
+
+export default function ReportsScreen(props: ExtraProps) {
   const {
     classes, classLabel, reportClassId, setReportClassId, reportRange, setReportRange, reportCustomStart, setReportCustomStart, reportCustomEnd,
     setReportCustomEnd, reportData, copyReport, reportCopied
@@ -19,7 +24,7 @@ export default function ReportsScreen(props: any) {
           <p className="text-xs font-semibold uppercase tracking-wide mb-1.5" style={{ color: '#5a5a6a' }}>Class</p>
           <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:gap-1.5">
             <button type="button" onClick={() => setReportClassId('all')} className="px-3 py-2 rounded-xl text-xs font-semibold transition-colors text-center" style={reportClassId === 'all' ? { background: '#14b8a6', color: '#fff' } : chipBase}>All classes</button>
-            {classes.map((cls: any) => (
+            {classes.map((cls: AppClass) => (
               <button key={cls.id} type="button" onClick={() => setReportClassId(cls.id)} className="px-3 py-2 rounded-xl text-xs font-semibold transition-colors text-center leading-snug" style={reportClassId === cls.id ? { background: '#14b8a6', color: '#fff' } : chipBase}>{classLabel(cls)}</button>
             ))}
           </div>
@@ -55,7 +60,7 @@ export default function ReportsScreen(props: any) {
       ) : (
         <>
           <div className="flex flex-col gap-4 mb-5">
-            {reportData.map((cls: any) => (
+            {reportData.map((cls: ReportClass) => (
               <div key={cls.classId} className="rounded-2xl px-4 py-4" style={surface}>
                 <p className="text-sm font-bold mb-3" style={{ color: '#f0f0f2' }}>{cls.className}</p>
 
@@ -66,8 +71,8 @@ export default function ReportsScreen(props: any) {
                       <p className="text-xs font-bold text-red-400 uppercase tracking-wide">Needs Support</p>
                     </div>
                     <div className="flex flex-col gap-2">
-                      {cls.needsSupport.map((s: any) => {
-                        const topics = [...new Set(s.lessons.filter((l: any) => l.status === 'needs-help').map((l: any) => l.title))]
+                      {cls.needsSupport.map((s: ReportStudent) => {
+                        const topics = [...new Set(s.lessons.filter((l) => l.status === 'needs-help').map((l) => l.title))]
                         return (
                           <div key={s.id} className="pl-4">
                             <p className="text-sm font-semibold" style={{ color: '#f0f0f2' }}>{s.name}</p>
@@ -86,8 +91,8 @@ export default function ReportsScreen(props: any) {
                       <p className="text-xs font-bold text-yellow-400 uppercase tracking-wide">Worth a Check-In</p>
                     </div>
                     <div className="flex flex-col gap-2">
-                      {cls.checkIn.map((s: any) => {
-                        const topics = [...new Set(s.lessons.map((l: any) => l.title))]
+                      {cls.checkIn.map((s: ReportStudent) => {
+                        const topics = [...new Set(s.lessons.map((l) => l.title))]
                         return (
                           <div key={s.id} className="pl-4">
                             <p className="text-sm font-semibold" style={{ color: '#f0f0f2' }}>{s.name}</p>

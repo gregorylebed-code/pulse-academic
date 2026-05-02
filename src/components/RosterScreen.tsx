@@ -1,5 +1,15 @@
+import { RosterScreenProps, AppClass, AppStudent, NameFormat, Screen } from '../types'
 
-export default function RosterScreen(props: any) {
+interface ExtraProps extends RosterScreenProps {
+  SUBJECTS: string[]
+  setScreen: (screen: Screen) => void
+  setSelectedStudentId: (id: string | null) => void
+  setHistoryClassId: (id: string) => void
+  nameFormat: NameFormat
+  cycleNameFormat: () => void
+}
+
+export default function RosterScreen(props: ExtraProps) {
   const {
     classes, rosterAddingClass, setRosterAddingClass, rosterNewClassName, setRosterNewClassName, rosterAddClass, rosterNewClassSubject,
     setRosterNewClassSubject, SUBJECTS, rosterSaving, studentsByClass, rosterRenaming, rosterRenameValue, setRosterRenameValue, rosterRenameClass,
@@ -78,8 +88,8 @@ export default function RosterScreen(props: any) {
         )}
 
         <div className="grid gap-4 xl:grid-cols-2">
-          {classes.map((cls: any) => {
-            const students = [...(studentsByClass[cls.id] ?? [])].sort((a: any, b: any) => a.name.localeCompare(b.name))
+          {classes.map((cls: AppClass) => {
+            const students = [...(studentsByClass[cls.id] ?? [])].sort((a: AppStudent, b: AppStudent) => a.name.localeCompare(b.name))
             const isRenaming = rosterRenaming === cls.id
             const isExpanded = expandedRosterClassId === cls.id
 
@@ -134,7 +144,7 @@ export default function RosterScreen(props: any) {
                   <div className="px-4 pb-5 pt-2 animate-in fade-in slide-in-from-top-1 duration-200" style={{ borderTop: '1px solid rgba(255,255,255,0.07)' }}>
                     <div className="grid grid-cols-2 gap-2 mb-4">
                       {students.length === 0 && <p className="text-xs italic col-span-2" style={{ color: '#3a3a4a' }}>No students yet.</p>}
-                      {students.map((s: any) => (
+                      {students.map((s: AppStudent) => (
                         <div key={s.id} className="flex min-h-10 items-center justify-between gap-2 rounded-xl px-3 py-2" style={{ background: '#1e1e22' }}>
                           {rosterRenamingStudent === s.id ? (
                             <div className="flex items-center gap-1.5 flex-1 min-w-0">
@@ -184,7 +194,7 @@ export default function RosterScreen(props: any) {
                       <input
                         type="text"
                         value={rosterNewStudentName[cls.id] ?? ''}
-                        onChange={e => setRosterNewStudentName((cur: any) => ({ ...cur, [cls.id]: e.target.value }))}
+                        onChange={e => setRosterNewStudentName((cur: Record<string, string>) => ({ ...cur, [cls.id]: e.target.value }))}
                         onKeyDown={e => e.key === 'Enter' && rosterAddStudent(cls.id)}
                         placeholder="Add student…"
                         className="w-full sm:min-w-[14rem] sm:flex-1 text-sm rounded-xl px-3 py-2 outline-none border focus:border-teal-500"
@@ -216,7 +226,7 @@ export default function RosterScreen(props: any) {
       {rosterCopySourceClassId && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
           <div className="rounded-2xl shadow-xl w-full max-w-md p-5 flex flex-col gap-4" style={{ background: '#161618', border: '1px solid rgba(255,255,255,0.1)' }}>
-            <h3 className="font-bold" style={{ color: '#f0f0f2' }}>Copy roster from {classes.find((c: any) => c.id === rosterCopySourceClassId)?.name}</h3>
+            <h3 className="font-bold" style={{ color: '#f0f0f2' }}>Copy roster from {classes.find((c: AppClass) => c.id === rosterCopySourceClassId)?.name}</h3>
             <p className="text-sm" style={{ color: '#8b8b9a' }}>Pick a class to copy these students into. Students already in that class will be skipped.</p>
             <select
               value={rosterCopyTargetClassId}
@@ -225,7 +235,7 @@ export default function RosterScreen(props: any) {
               style={{ background: '#1e1e22', borderColor: 'rgba(255,255,255,0.1)', color: '#f0f0f2' }}
             >
               <option value="">Select a class…</option>
-              {classes.filter((c: any) => c.id !== rosterCopySourceClassId).map((c: any) => (
+              {classes.filter((c: AppClass) => c.id !== rosterCopySourceClassId).map((c: AppClass) => (
                 <option key={c.id} value={c.id}>{c.subject} · {c.name} ({(studentsByClass[c.id] ?? []).length} students)</option>
               ))}
             </select>

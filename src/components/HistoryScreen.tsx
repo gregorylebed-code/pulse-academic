@@ -1,5 +1,19 @@
+import { HistoryScreenProps, AppClass, AppStudent, HistoryRow, Status } from '../types'
 
-export default function HistoryScreen(props: any) {
+interface ExtraProps extends HistoryScreenProps {
+  classLabel: (cls: AppClass) => string
+  historyStudents: AppStudent[]
+  studentHistoryRows: HistoryRow[]
+  formatDate: (iso: string) => string
+  STATUS_PILL: Record<Status, string>
+  STATUS_LABEL: Record<Status, string>
+  filteredHistory: HistoryRow[]
+  lessonDetail: HistoryRow[]
+  lessonGroups: { lesson_id: string; lesson_title: string; date: string; rows: HistoryRow[] }[]
+  openProfile: (id: string, name: string) => void
+}
+
+export default function HistoryScreen(props: ExtraProps) {
   const {
     historyTab, setHistoryTab, setSelectedStudentId, setSelectedLesson, classes, setHistoryClassId, historyClassId, classLabel,
     historyLoading, selectedStudentId, formatStudentName, historyStudents, nameFormat, studentHistoryRows, formatDate, STATUS_PILL, STATUS_LABEL,
@@ -25,7 +39,7 @@ export default function HistoryScreen(props: any) {
         {classes.length > 1 && (
           <div className="w-full overflow-x-auto scrollbar-none pb-2 sm:w-auto sm:pb-2">
             <div className="flex w-max gap-2 rounded-xl p-1.5" style={{ background: 'rgba(255,255,255,0.05)' }}>
-              {classes.map((cls: any) => (
+              {classes.map((cls: AppClass) => (
                 <button key={cls.id} type="button"
                   onClick={() => { setHistoryClassId(cls.id); setSelectedStudentId(null); setSelectedLesson(null) }}
                   className={`max-w-[10.5rem] truncate whitespace-nowrap px-4 py-1.5 rounded-lg text-xs font-semibold transition-all ${historyClassId === cls.id ? 'bg-teal-500 text-white shadow-sm' : ''}`}
@@ -50,13 +64,13 @@ export default function HistoryScreen(props: any) {
             <div>
               <button type="button" onClick={() => setSelectedStudentId(null)} className="text-sm text-teal-400 mb-3 flex items-center gap-1">← All students</button>
               <h2 className="text-base font-bold mb-3" style={{ color: '#f0f0f2' }}>
-                {formatStudentName(historyStudents.find((s: any) => s.id === selectedStudentId)?.name ?? '', nameFormat, historyStudents.map((s: any) => s.name))}
+                {formatStudentName(historyStudents.find((s: AppStudent) => s.id === selectedStudentId)?.name ?? '', nameFormat, historyStudents.map((s: AppStudent) => s.name))}
               </h2>
               {studentHistoryRows.length === 0 ? (
                 <p className="text-sm" style={{ color: '#5a5a6a' }}>No data yet.</p>
               ) : (
                 <div className="flex flex-col gap-2">
-                  {studentHistoryRows.map((row: any, i: number) => (
+                  {studentHistoryRows.map((row: HistoryRow, i: number) => (
                     <div key={i} className="rounded-2xl px-4 py-3 flex items-start justify-between gap-3" style={cardStyle}>
                       <div className="min-w-0">
                         <p className="text-sm font-semibold" style={{ color: '#f0f0f2' }}>{row.lesson_title}</p>
@@ -71,14 +85,14 @@ export default function HistoryScreen(props: any) {
             </div>
           ) : (
             <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-2">
-              {historyStudents.map((s: any) => {
-                const rows = filteredHistory.filter((r: any) => r.student_id === s.id)
-                const needsHelp = rows.filter((r: any) => r.status === 'needs-help').length
-                const almost = rows.filter((r: any) => r.status === 'almost').length
+              {historyStudents.map((s: AppStudent) => {
+                const rows = filteredHistory.filter((r: HistoryRow) => r.student_id === s.id)
+                const needsHelp = rows.filter((r: HistoryRow) => r.status === 'needs-help').length
+                const almost = rows.filter((r: HistoryRow) => r.status === 'almost').length
                 return (
                   <div key={s.id} className="rounded-2xl px-3 py-3 flex flex-col items-center text-center gap-1" style={cardStyle}>
                     <button type="button" onClick={() => setSelectedStudentId(s.id)} className="w-full flex flex-col items-center gap-1">
-                      <p className="text-sm font-semibold leading-tight" style={{ color: '#f0f0f2' }}>{formatStudentName(s.name, nameFormat, historyStudents.map((x: any) => x.name))}</p>
+                      <p className="text-sm font-semibold leading-tight" style={{ color: '#f0f0f2' }}>{formatStudentName(s.name, nameFormat, historyStudents.map((x: AppStudent) => x.name))}</p>
                       <p className="text-xs" style={{ color: '#5a5a6a' }}>{rows.length} lesson{rows.length !== 1 ? 's' : ''}</p>
                       <div className="flex flex-wrap justify-center gap-1 mt-0.5">
                         {needsHelp > 0 && <span className="text-xs font-semibold px-1.5 py-0.5 rounded-full bg-red-900/40 text-red-400">{needsHelp} ⚠</span>}
@@ -105,10 +119,10 @@ export default function HistoryScreen(props: any) {
                 <p className="text-sm" style={{ color: '#5a5a6a' }}>No data.</p>
               ) : (
                 <div className="flex flex-col gap-2">
-                  {lessonDetail.sort((a: any, b: any) => a.student_name.localeCompare(b.student_name)).map((row: any, i: number) => (
+                  {lessonDetail.sort((a: HistoryRow, b: HistoryRow) => a.student_name.localeCompare(b.student_name)).map((row: HistoryRow, i: number) => (
                     <div key={i} className="rounded-2xl px-4 py-3 flex items-start justify-between gap-3" style={cardStyle}>
                       <div className="min-w-0">
-                        <p className="text-sm font-semibold" style={{ color: '#f0f0f2' }}>{formatStudentName(row.student_name, nameFormat, historyStudents.map((s: any) => s.name))}</p>
+                        <p className="text-sm font-semibold" style={{ color: '#f0f0f2' }}>{formatStudentName(row.student_name, nameFormat, historyStudents.map((s: AppStudent) => s.name))}</p>
                         {row.note && <p className="text-xs text-indigo-400 mt-0.5 italic">{row.note}</p>}
                       </div>
                       <span className={`text-xs font-semibold px-2.5 py-1 rounded-full shrink-0 ${STATUS_PILL[row.status as keyof typeof STATUS_PILL]}`}>{STATUS_LABEL[row.status as keyof typeof STATUS_LABEL]}</span>
@@ -121,10 +135,10 @@ export default function HistoryScreen(props: any) {
             <div className="flex flex-col gap-2">
               {lessonGroups.length === 0 ? (
                 <p className="text-sm text-center mt-10" style={{ color: '#5a5a6a' }}>No history yet.</p>
-              ) : lessonGroups.map((g: any, i: number) => {
-                const needsHelp = g.rows.filter((r: any) => r.status === 'needs-help').length
-                const almost = g.rows.filter((r: any) => r.status === 'almost').length
-                const gotIt = g.rows.filter((r: any) => r.status === 'got-it').length
+              ) : lessonGroups.map((g, i: number) => {
+                const needsHelp = g.rows.filter((r: HistoryRow) => r.status === 'needs-help').length
+                const almost = g.rows.filter((r: HistoryRow) => r.status === 'almost').length
+                const gotIt = g.rows.filter((r: HistoryRow) => r.status === 'got-it').length
                 return (
                   <button key={i} type="button" onClick={() => setSelectedLesson({ lesson_id: g.lesson_id, lesson_title: g.lesson_title, date: g.date })} className="rounded-2xl px-4 py-3 flex items-center justify-between text-left hover:brightness-110 transition-all" style={cardStyle}>
                     <div>
