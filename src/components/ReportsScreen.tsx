@@ -85,7 +85,7 @@ export default function ReportsScreen(props: ExtraProps) {
                 )}
 
                 {cls.checkIn.length > 0 && (
-                  <div>
+                  <div className={cls.absent.length > 0 ? 'mb-3' : ''}>
                     <div className="flex items-center gap-2 mb-2">
                       <span className="w-2 h-2 rounded-full bg-yellow-400 shrink-0" />
                       <p className="text-xs font-bold text-yellow-400 uppercase tracking-wide">Worth a Check-In</p>
@@ -97,6 +97,26 @@ export default function ReportsScreen(props: ExtraProps) {
                           <div key={s.id} className="pl-4">
                             <p className="text-sm font-semibold" style={{ color: '#f0f0f2' }}>{s.name}</p>
                             <p className="text-xs mt-0.5" style={{ color: '#5a5a6a' }}>{(topics as string[]).join(' · ')}</p>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {cls.absent.length > 0 && (
+                  <div>
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="w-2 h-2 rounded-full bg-blue-400 shrink-0" />
+                      <p className="text-xs font-bold text-blue-400 uppercase tracking-wide">Missed Lesson — Needs Catch-Up</p>
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      {cls.absent.map((s: ReportStudent) => {
+                        const lessons = [...new Set(s.lessons.map((l) => l.title))]
+                        return (
+                          <div key={s.id} className="pl-4">
+                            <p className="text-sm font-semibold" style={{ color: '#f0f0f2' }}>{s.name}</p>
+                            <p className="text-xs mt-0.5" style={{ color: '#5a5a6a' }}>{(lessons as string[]).join(' · ')}</p>
                           </div>
                         )
                       })}

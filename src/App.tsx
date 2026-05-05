@@ -17,42 +17,48 @@ import type { Status, Screen, HistoryTab, NameFormat, AppClass, AppStudent, AppL
 
 // ── Constants ─────────────────────────────────────────────────────────────
 
-const STATUS_CYCLE: Status[] = ['got-it', 'almost', 'needs-help']
+const STATUS_CYCLE: Status[] = ['got-it', 'almost', 'needs-help', 'absent']
 
 const STATUS_RING: Record<Status, string> = {
   'got-it':     'ring-[3px] ring-emerald-400',
   'almost':     'ring-[3px] ring-yellow-400',
   'needs-help': 'ring-[3px] ring-red-400',
+  'absent':     'ring-[3px] ring-blue-400',
 }
 
 const STATUS_INITIAL_BG: Record<Status, string> = {
   'got-it':     'bg-[#1a2a1e] text-white',
   'almost':     'bg-[#2a2310] text-white',
   'needs-help': 'bg-[#2a1a1a] text-white',
+  'absent':     'bg-[#0f1a2a] text-white',
 }
 
 const STATUS_DOT: Record<Status, string> = {
   'got-it':     'bg-emerald-400',
   'almost':     'bg-yellow-400',
   'needs-help': 'bg-red-400',
+  'absent':     'bg-blue-400',
 }
 
 const STATUS_CARD: Record<Status, string> = {
   'got-it':     'bg-[#111c14] border border-emerald-900/60',
   'almost':     'bg-[#1c1a0e] border border-yellow-900/60',
   'needs-help': 'bg-[#1c1010] border border-red-900/60',
+  'absent':     'bg-[#0f1622] border border-blue-900/60',
 }
 
 const STATUS_LABEL: Record<Status, string> = {
   'got-it':     'Got It',
   'almost':     'Almost',
   'needs-help': 'Needs Help',
+  'absent':     'Absent',
 }
 
 const STATUS_PILL: Record<Status, string> = {
   'got-it':     'bg-emerald-900/40 text-emerald-400',
   'almost':     'bg-yellow-900/40 text-yellow-400',
   'needs-help': 'bg-red-900/40 text-red-400',
+  'absent':     'bg-blue-900/40 text-blue-400',
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────
@@ -416,7 +422,7 @@ export default function App({ userId, isDemo = false, onSignOut }: Props) {
           studentMap.set(row.student_id, { id: row.student_id, name: row.student_name, lessons: [], notes: [] })
         }
         const student = studentMap.get(row.student_id)!
-        student.lessons.push({ title: row.lesson_title, date: row.date, status: row.status as 'needs-help' | 'almost' })
+        student.lessons.push({ title: row.lesson_title, date: row.date, status: row.status as 'needs-help' | 'almost' | 'absent' })
         if (row.note?.trim()) student.notes.push({ date: row.date, lessonTitle: row.lesson_title, text: row.note.trim() })
       }
 
@@ -427,10 +433,11 @@ export default function App({ userId, isDemo = false, onSignOut }: Props) {
       }))
 
       const needsSupport = all.filter(s => s.lessons.some(l => l.status === 'needs-help')).sort((a, b) => a.name.localeCompare(b.name))
-      const checkIn = all.filter(s => !s.lessons.some(l => l.status === 'needs-help')).sort((a, b) => a.name.localeCompare(b.name))
+      const checkIn = all.filter(s => !s.lessons.some(l => l.status === 'needs-help') && s.lessons.some(l => l.status === 'almost')).sort((a, b) => a.name.localeCompare(b.name))
+      const absent = all.filter(s => s.lessons.every(l => l.status === 'absent')).sort((a, b) => a.name.localeCompare(b.name))
 
-      return { classId: cls.id, className: cls.name, needsSupport, checkIn }
-    }).filter(c => c.needsSupport.length > 0 || c.checkIn.length > 0)
+      return { classId: cls.id, className: cls.name, needsSupport, checkIn, absent }
+    }).filter(c => c.needsSupport.length > 0 || c.checkIn.length > 0 || c.absent.length > 0)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [historyData, classes, studentsByClass, reportClassId, reportRange, reportCustomStart, reportCustomEnd, today])
 
@@ -463,6 +470,13 @@ export default function App({ userId, isDemo = false, onSignOut }: Props) {
           for (const n of s.notes.slice(0, 3)) {
             lines.push(`    - Note (${formatDate(n.date)} | ${n.lessonTitle}): ${n.text}`)
           }
+        }
+      }
+      if (cls.absent.length > 0) {
+        lines.push('Missed Lesson (need catch-up):')
+        for (const s of cls.absent) {
+          const lessons = [...new Set(s.lessons.map(l => l.title))].join(', ')
+          lines.push(`  • ${s.name} — ${lessons}`)
         }
       }
       lines.push('')

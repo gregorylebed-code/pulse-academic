@@ -1,7 +1,7 @@
 import type { DayLesson, WeekSchedule, ExitTicket } from './lib/groq'
 import type { DemoLesson } from './lib/demo'
 
-export type Status = 'got-it' | 'almost' | 'needs-help'
+export type Status = 'got-it' | 'almost' | 'needs-help' | 'absent'
 export type ReportRange = 'today' | 'week' | 'month' | 'custom' | 'all'
 export type Screen = 'tracker' | 'history' | 'plan' | 'roster' | 'reports'
 export type HistoryTab = 'student' | 'lesson'
@@ -49,7 +49,7 @@ export type SavedPlan = {
 export type ReportStudent = {
   id: string
   name: string
-  lessons: { title: string; date: string; status: 'needs-help' | 'almost' }[]
+  lessons: { title: string; date: string; status: 'needs-help' | 'almost' | 'absent' }[]
   notes: { date: string; lessonTitle: string; text: string }[]
 }
 
@@ -58,6 +58,7 @@ export type ReportClass = {
   className: string
   needsSupport: ReportStudent[]
   checkIn: ReportStudent[]
+  absent: ReportStudent[]
 }
 
 export interface TrackerScreenProps {
