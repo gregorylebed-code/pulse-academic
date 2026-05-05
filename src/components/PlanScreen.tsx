@@ -4,6 +4,9 @@ import type { WeekSchedule, DayLesson } from '../lib/groq'
 interface ExtraProps extends PlanScreenProps {
   formatWeek: (weekStart: string) => string
   weekStart: string
+  nextWeekStart: string
+  planViewWeek: 'current' | 'next'
+  setPlanViewWeek: (w: 'current' | 'next') => void
   subjectChoices: string[]
   confirmSubjects: () => void
   DAYS: string[]
@@ -22,7 +25,7 @@ interface ExtraProps extends PlanScreenProps {
 
 export default function PlanScreen(props: ExtraProps) {
   const {
-    formatWeek, weekStart, pendingSchedule, subjectChoices, setSubjectChoices, confirmSubjects, planSaving, setPendingSchedule,
+    formatWeek, weekStart, nextWeekStart, planViewWeek, setPlanViewWeek, pendingSchedule, subjectChoices, setSubjectChoices, confirmSubjects, planSaving, setPendingSchedule,
     savedPlan, undoSnapshot, handleUndo, swapSource, setSwapSource, swapSubjectSource, setSwapSubjectSource, DAYS, getDateForDayOffset,
     today, expandedDay, editingDay, editDraft, editSubject, setEditDraft, saveEdit, setEditingDay, setEditSubject, handleSwap, startEdit,
     setExpandedDay, handleSwapSubject, skipConfirmSubject, setSkipConfirmSubject, skipSubject, copyToNext, skipConfirmDay, setSkipConfirmDay,
@@ -34,8 +37,31 @@ export default function PlanScreen(props: ExtraProps) {
 
   return (
     <main className="flex-1 px-4 py-5 max-w-lg mx-auto w-full">
-      <h2 className="text-base font-bold mb-1" style={{ color: '#f0f0f2' }}>Weekly Lesson Plan</h2>
-      <p className="text-xs mb-4" style={{ color: '#5a5a6a' }}>{formatWeek(weekStart)}</p>
+      <h2 className="text-base font-bold mb-3" style={{ color: '#f0f0f2' }}>Weekly Lesson Plan</h2>
+
+      {/* Week toggle */}
+      {!pendingSchedule && (
+        <div className="flex gap-2 mb-4">
+          <button
+            type="button"
+            onClick={() => { setPlanViewWeek('current'); setSavedPlan(null) }}
+            className="flex-1 py-2 rounded-xl text-xs font-semibold transition-colors"
+            style={planViewWeek === 'current' ? { background: '#14b8a6', color: '#fff' } : { background: 'rgba(255,255,255,0.07)', color: '#8b8b9a' }}
+          >
+            This week
+            <span className="block text-[10px] font-normal mt-0.5 opacity-75">{formatWeek(weekStart)}</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => { setPlanViewWeek('next'); setSavedPlan(null) }}
+            className="flex-1 py-2 rounded-xl text-xs font-semibold transition-colors"
+            style={planViewWeek === 'next' ? { background: '#14b8a6', color: '#fff' } : { background: 'rgba(255,255,255,0.07)', color: '#8b8b9a' }}
+          >
+            Next week
+            <span className="block text-[10px] font-normal mt-0.5 opacity-75">{formatWeek(nextWeekStart)}</span>
+          </button>
+        </div>
+      )}
 
       {pendingSchedule && (
         <div className="rounded-2xl px-4 py-4 mb-4" style={surface}>
@@ -70,7 +96,7 @@ export default function PlanScreen(props: ExtraProps) {
       {savedPlan && !pendingSchedule ? (
         <div className="rounded-2xl px-4 py-3 mb-5" style={surface}>
           <div className="flex items-center justify-between mb-2">
-            <p className="text-xs font-semibold text-teal-400 uppercase tracking-wide">This week's schedule</p>
+            <p className="text-xs font-semibold text-teal-400 uppercase tracking-wide">{planViewWeek === 'next' ? "Next week's schedule" : "This week's schedule"}</p>
             <div className="flex items-center gap-3">
               {undoSnapshot && !planSaving && (
                 <button type="button" onClick={handleUndo} className="text-xs font-semibold text-teal-400 underline">↩ Undo</button>
@@ -216,9 +242,9 @@ export default function PlanScreen(props: ExtraProps) {
             {planError && <p className="text-xs text-red-400 mt-2">{planError}</p>}
           </div>
           <button type="button" onClick={handleSavePlan} disabled={!planText.trim() || planLoading} className="w-full py-3 bg-teal-500 text-white text-sm font-semibold rounded-2xl disabled:opacity-40">
-            {planLoading ? 'Analyzing with AI…' : "Save this week's plan"}
+            {planLoading ? 'Analyzing with AI…' : planViewWeek === 'next' ? "Save next week's plan" : "Save this week's plan"}
           </button>
-          {planSaved && <p className="text-xs text-emerald-400 text-center mt-3 font-semibold">✓ Plan saved! Today's lesson was auto-filled.</p>}
+          {planSaved && <p className="text-xs text-emerald-400 text-center mt-3 font-semibold">{planViewWeek === 'next' ? '✓ Next week saved! Switch to this week to start lessons.' : '✓ Plan saved! Today\'s lesson was auto-filled.'}</p>}
         </>
       ) : null}
     </main>

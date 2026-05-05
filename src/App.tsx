@@ -12,6 +12,7 @@ import HistoryScreen from './components/HistoryScreen'
 import ReportsScreen from './components/ReportsScreen'
 import RosterScreen from './components/RosterScreen'
 import StudentProfileSheet from './components/StudentProfileSheet'
+import MicButton from './components/MicButton'
 
 import type { Status, Screen, HistoryTab, NameFormat, AppClass, AppStudent, AppLesson, HistoryRow, SavedPlan, ReportClass, ReportRange, ReportStudent } from './types'
 
@@ -173,6 +174,11 @@ type Props = {
 export default function App({ userId, isDemo = false, onSignOut }: Props) {
   const today = todayISO()
   const weekStart = getWeekStart(today)
+  const nextWeekStart = (() => {
+    const [y, m, d] = weekStart.split('-').map(Number)
+    const dt = new Date(y, m - 1, d + 7)
+    return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`
+  })()
 
   // ── Data ──
   const [classes, setClasses] = useState<AppClass[]>([])
@@ -194,10 +200,13 @@ export default function App({ userId, isDemo = false, onSignOut }: Props) {
   const [showExitTickets, setShowExitTickets] = useState(false)
 
   // Week plan
+  const [planViewWeek, setPlanViewWeek] = useState<'current' | 'next'>('current')
+  const activePlanWeekStart = planViewWeek === 'next' ? nextWeekStart : weekStart
   const [planText, setPlanText] = useState('')
   const [planLoading, setPlanLoading] = useState(false)
   const [planError, setPlanError] = useState('')
   const [savedPlan, setSavedPlan] = useState<SavedPlan | null>(null)
+  const [currentWeekPlan, setCurrentWeekPlan] = useState<SavedPlan | null>(null)
   const [expandedDay, setExpandedDay] = useState<string | null>(null)
   const [editingDay, setEditingDay] = useState<string | null>(null)
   const [editSubject, setEditSubject] = useState<string | null>(null)
@@ -629,7 +638,9 @@ export default function App({ userId, isDemo = false, onSignOut }: Props) {
       .then(({ data }) => {
         if (data) {
           const tracked = data.tracked_subjects ?? []
-          setSavedPlan({ weekStart: data.week_start, schedule: data.plan_json, trackedSubjects: tracked, planId: data.id })
+          const plan = { weekStart: data.week_start, schedule: data.plan_json, trackedSubjects: tracked, planId: data.id }
+          setSavedPlan(plan)
+          setCurrentWeekPlan(plan)
           if (tracked.length > 0) setActiveSubject(tracked[0])
         }
       })
@@ -672,20 +683,28 @@ export default function App({ userId, isDemo = false, onSignOut }: Props) {
     loadHistory()
   }, [screen, userId, isDemo])
 
-  // ── Load plan when navigating to plan screen ─────────────────────────────
+  // ── Load plan when navigating to plan screen or switching week view ───────
 
   useEffect(() => {
     if (screen !== 'plan' || isDemo) return
+    setSavedPlan(null)
+    setPlanText('')
+    setPlanError('')
     supabase
       .from('week_plans')
       .select('id, week_start, plan_json, tracked_subjects')
       .eq('class_id', selectedClassId)
-      .eq('week_start', weekStart)
+      .eq('week_start', activePlanWeekStart)
       .maybeSingle()
       .then(({ data }) => {
-        if (data) setSavedPlan({ weekStart: data.week_start, schedule: data.plan_json, trackedSubjects: data.tracked_subjects ?? [], planId: data.id })
+        if (data) {
+          const plan = { weekStart: data.week_start, schedule: data.plan_json, trackedSubjects: data.tracked_subjects ?? [], planId: data.id }
+          setSavedPlan(plan)
+          if (planViewWeek === 'current') setCurrentWeekPlan(plan)
+        }
       })
-  }, [screen, userId, isDemo, weekStart, selectedClassId])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [screen, userId, isDemo, activePlanWeekStart, selectedClassId])
 
   // ── Lesson actions ────────────────────────────────────────────────────────
 
@@ -860,7 +879,7 @@ async function handleSuggestExitTicket() {
     setPlanError('')
     setPlanSaved(false)
     try {
-      const schedule = await parseLessonPlan(planText, weekStart)
+      const schedule = await parseLessonPlan(planText, activePlanWeekStart)
       const found = new Set<string>()
       for (const day of Object.values(schedule)) for (const subj of Object.keys(day)) found.add(subj)
       setPendingSchedule(schedule)
@@ -884,13 +903,17 @@ async function handleSuggestExitTicket() {
     }
     const { data } = await supabase
       .from('week_plans')
-      .upsert({ user_id: userId, class_id: selectedClassId, week_start: weekStart, plan_json: filtered, tracked_subjects: subjectChoices }, { onConflict: 'class_id,week_start' })
+      .upsert({ user_id: userId, class_id: selectedClassId, week_start: activePlanWeekStart, plan_json: filtered, tracked_subjects: subjectChoices }, { onConflict: 'class_id,week_start' })
       .select('id')
       .single()
-    setSavedPlan({ weekStart, schedule: filtered, trackedSubjects: subjectChoices, planId: data?.id })
-    setActiveSubject(subjectChoices[0])
-    const todayDay = filtered[today]
-    if (todayDay?.[subjectChoices[0]]) setLessonInput(todayDay[subjectChoices[0]].title)
+    const newPlan = { weekStart: activePlanWeekStart, schedule: filtered, trackedSubjects: subjectChoices, planId: data?.id }
+    setSavedPlan(newPlan)
+    if (planViewWeek === 'current') {
+      setCurrentWeekPlan(newPlan)
+      setActiveSubject(subjectChoices[0])
+      const todayDay = filtered[today]
+      if (todayDay?.[subjectChoices[0]]) setLessonInput(todayDay[subjectChoices[0]].title)
+    }
     setPendingSchedule(null)
     setPlanSaving(false)
     setPlanSaved(true)
@@ -903,11 +926,15 @@ async function handleSuggestExitTicket() {
     setPlanSaving(true)
     await supabase
       .from('week_plans')
-      .upsert({ user_id: userId, class_id: selectedClassId, week_start: weekStart, plan_json: schedule, tracked_subjects: savedPlan.trackedSubjects }, { onConflict: 'class_id,week_start' })
-    setSavedPlan({ ...savedPlan, schedule })
-    const todayDay = schedule[today]
-    const subj = activeSubject ?? savedPlan.trackedSubjects[0]
-    if (todayDay?.[subj]) setLessonInput(todayDay[subj].title)
+      .upsert({ user_id: userId, class_id: selectedClassId, week_start: activePlanWeekStart, plan_json: schedule, tracked_subjects: savedPlan.trackedSubjects }, { onConflict: 'class_id,week_start' })
+    const updated = { ...savedPlan, schedule }
+    setSavedPlan(updated)
+    if (planViewWeek === 'current') {
+      setCurrentWeekPlan(updated)
+      const todayDay = schedule[today]
+      const subj = activeSubject ?? savedPlan.trackedSubjects[0]
+      if (todayDay?.[subj]) setLessonInput(todayDay[subj].title)
+    }
     setPlanSaving(false)
   }
 
@@ -1111,7 +1138,7 @@ async function handleSuggestExitTicket() {
   const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday']
 
   function getDateForDayOffset(offset: number) {
-    const [y, m, d] = weekStart.split('-').map(Number)
+    const [y, m, d] = activePlanWeekStart.split('-').map(Number)
     const dt = new Date(y, m - 1, d + offset)
     return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`
   }
@@ -1128,7 +1155,7 @@ async function handleSuggestExitTicket() {
   }
 
   const screenProps = {
-    formatWeek, weekStart, pendingSchedule, subjectChoices, setSubjectChoices, confirmSubjects, planSaving, setPendingSchedule,
+    formatWeek, weekStart: activePlanWeekStart, nextWeekStart, planViewWeek, setPlanViewWeek, pendingSchedule, subjectChoices, setSubjectChoices, confirmSubjects, planSaving, setPendingSchedule,
     savedPlan, undoSnapshot, handleUndo, swapSource, setSwapSource, swapSubjectSource, setSwapSubjectSource, DAYS, getDateForDayOffset,
     today, expandedDay, editingDay, editDraft, editSubject, setEditDraft, saveEdit, setEditingDay, setEditSubject, handleSwap, startEdit,
     setExpandedDay, handleSwapSubject, skipConfirmSubject, setSkipConfirmSubject, skipSubject, copyToNext, skipConfirmDay, setSkipConfirmDay,
@@ -1248,8 +1275,8 @@ async function handleSuggestExitTicket() {
       {/* Subject tabs — only shown when the class has no fixed subject (e.g. homeroom covering multiple subjects) */}
       {(() => {
         const selectedClass = classes.find(c => c.id === selectedClassId)
-        const classHasFixedSubject = selectedClass?.subject && savedPlan?.trackedSubjects.includes(selectedClass.subject)
-        return screen === 'tracker' && savedPlan && savedPlan.trackedSubjects.length > 1 && !classHasFixedSubject
+        const classHasFixedSubject = selectedClass?.subject && currentWeekPlan?.trackedSubjects.includes(selectedClass.subject)
+        return screen === 'tracker' && currentWeekPlan && currentWeekPlan.trackedSubjects.length > 1 && !classHasFixedSubject
       })() && (
         <div className="px-4 overflow-x-auto scrollbar-none" style={{ background: '#111113', borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
           <div className="flex gap-6 min-w-max">
@@ -1275,7 +1302,7 @@ async function handleSuggestExitTicket() {
 
       {/* ── PLAN SCREEN ── */}
       {screen === 'plan' && <PlanScreen {...screenProps} />}
-      {screen === 'tracker' && <TrackerScreen {...screenProps} />}
+      {screen === 'tracker' && <TrackerScreen {...screenProps} savedPlan={currentWeekPlan} />}
       {screen === 'history' && <HistoryScreen {...screenProps} />}
       {screen === 'reports' && <ReportsScreen {...screenProps} />}
       {screen === 'roster' && <RosterScreen {...screenProps} />}
@@ -1392,15 +1419,18 @@ async function handleSuggestExitTicket() {
               </p>
               <button type="button" onClick={closeNoteModal} className="text-lg leading-none" style={{ color: '#5a5a6a' }}>✕</button>
             </div>
-            <textarea
-              autoFocus
-              rows={4}
-              value={noteText}
-              onChange={e => setNoteText(e.target.value)}
-              placeholder="What was the student struggling with?"
-              className="w-full rounded-2xl px-4 py-3 text-sm outline-none focus:border-teal-500 resize-none border"
-              style={{ background: '#1e1e22', borderColor: 'rgba(255,255,255,0.1)', color: '#f0f0f2' }}
-            />
+            <div className="relative">
+              <textarea
+                autoFocus
+                rows={4}
+                value={noteText}
+                onChange={e => setNoteText(e.target.value)}
+                placeholder="What was the student struggling with?"
+                className="w-full rounded-2xl px-4 py-3 pr-12 text-sm outline-none focus:border-teal-500 resize-none border"
+                style={{ background: '#1e1e22', borderColor: 'rgba(255,255,255,0.1)', color: '#f0f0f2' }}
+              />
+              <MicButton onTranscript={text => setNoteText(cur => cur ? cur + ' ' + text : text)} />
+            </div>
             <div className="flex gap-2 mt-3">
               <button type="button" onClick={closeNoteModal} className="flex-1 py-3 rounded-2xl text-sm font-semibold transition-colors" style={{ background: 'rgba(255,255,255,0.07)', color: '#8b8b9a' }}>Cancel</button>
               <button type="button" onClick={saveNote} className="flex-1 py-3 rounded-2xl text-sm font-semibold text-white bg-teal-500 hover:bg-teal-600 transition-colors">Save</button>

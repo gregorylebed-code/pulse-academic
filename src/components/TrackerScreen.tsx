@@ -137,18 +137,23 @@ export default function TrackerScreen(props: TrackerScreenProps) {
               const gotIt = currentStudents.filter((s: AppStudent) => (studentStatuses[s.id] ?? 'got-it') === 'got-it').length
               const almost = currentStudents.filter((s: AppStudent) => studentStatuses[s.id] === 'almost').length
               const needsHelp = currentStudents.filter((s: AppStudent) => studentStatuses[s.id] === 'needs-help').length
+              const absent = currentStudents.filter((s: AppStudent) => studentStatuses[s.id] === 'absent').length
               return (
-                <div className="flex items-center justify-between mb-3 bg-[#111c14] border border-emerald-900/40 rounded-2xl px-4 py-2.5">
-                  <div className="flex items-center gap-4 text-xs font-semibold">
-                    <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-emerald-400" /><span className="text-emerald-400">{gotIt} Got It</span></span>
-                    <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-yellow-400" /><span className="text-yellow-400">{almost} Almost</span></span>
-                    <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-red-400" /><span className="text-red-400">{needsHelp} Needs Help</span></span>
+                <div className="mb-3">
+                  <div className="flex items-center justify-between bg-[#111c14] border border-emerald-900/40 rounded-2xl px-4 py-2.5">
+                    <div className="flex flex-wrap items-center gap-3 text-xs font-semibold">
+                      <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-emerald-400" /><span className="text-emerald-400">{gotIt} Got It</span></span>
+                      <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-yellow-400" /><span className="text-yellow-400">{almost} Almost</span></span>
+                      <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-red-400" /><span className="text-red-400">{needsHelp} Needs Help</span></span>
+                      <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-blue-400" /><span className="text-blue-400">{absent} Absent</span></span>
+                    </div>
+                    {!isDemo && gotIt > 0 && (
+                      <button type="button" onClick={confirmAllGotIt} className="text-xs font-semibold px-3 py-1.5 bg-emerald-900/40 text-emerald-400 rounded-xl hover:bg-emerald-900/60 transition-colors shrink-0 ml-2">
+                        ✓ Save All Got It
+                      </button>
+                    )}
                   </div>
-                  {!isDemo && gotIt > 0 && (
-                    <button type="button" onClick={confirmAllGotIt} className="text-xs font-semibold px-3 py-1.5 bg-emerald-900/40 text-emerald-400 rounded-xl hover:bg-emerald-900/60 transition-colors shrink-0">
-                      ✓ Save All Got It
-                    </button>
-                  )}
+                  <p className="text-center text-[11px] mt-1.5" style={{ color: '#3a3a4a' }}>Hold a student circle to add a note</p>
                 </div>
               )
             })()}
