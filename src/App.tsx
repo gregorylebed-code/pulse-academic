@@ -186,6 +186,7 @@ export default function App({ userId, isDemo = false, onSignOut }: Props) {
   const [dataLoading, setDataLoading] = useState(true)
 
   // ── UI state ──
+  const [confirmSignOut, setConfirmSignOut] = useState(false)
   const [screen, setScreen] = useState<Screen>('tracker')
   const [selectedClassId, setSelectedClassId] = useState<string>('')
   const [lessonInput, setLessonInput] = useState('')
@@ -1239,14 +1240,35 @@ async function handleSuggestExitTicket() {
             {(screen === 'plan') && (
               <button type="button" onClick={() => setScreen('tracker')} className="rounded-xl px-3 py-2 text-sm font-semibold hover:bg-white/5" style={{ color: '#8b8b9a' }}>Done</button>
             )}
-            <button
-              type="button"
-              onClick={onSignOut}
-              className="rounded-xl px-3 py-2 text-xs font-semibold hover:bg-white/5 transition-colors"
-              style={{ color: '#5a5a6a' }}
-            >
-              {isDemo ? 'Exit' : 'Sign out'}
-            </button>
+            {confirmSignOut ? (
+              <span className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={onSignOut}
+                  className="rounded-xl px-3 py-2 text-xs font-semibold bg-rose-500/20 hover:bg-rose-500/30 transition-colors"
+                  style={{ color: '#f87171' }}
+                >
+                  Confirm
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setConfirmSignOut(false)}
+                  className="rounded-xl px-3 py-2 text-xs font-semibold hover:bg-white/5 transition-colors"
+                  style={{ color: '#5a5a6a' }}
+                >
+                  Cancel
+                </button>
+              </span>
+            ) : (
+              <button
+                type="button"
+                onClick={isDemo ? onSignOut : () => setConfirmSignOut(true)}
+                className="rounded-xl px-3 py-2 text-xs font-semibold hover:bg-white/5 transition-colors"
+                style={{ color: '#5a5a6a' }}
+              >
+                {isDemo ? 'Exit' : 'Sign out'}
+              </button>
+            )}
           </div>
         </div>
         </div>
@@ -1386,17 +1408,38 @@ async function handleSuggestExitTicket() {
 
           {/* Sign out */}
           {!isDemo && (
-            <button
-              type="button"
-              onClick={onSignOut}
-              className="flex-1 flex flex-col items-center justify-center gap-0.5 text-[10px] font-semibold transition-colors"
-              style={{ color: '#5a5a6a' }}
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-              Sign out
-            </button>
+            confirmSignOut ? (
+              <span className="flex-1 flex items-center justify-center gap-1">
+                <button
+                  type="button"
+                  onClick={onSignOut}
+                  className="px-2 py-1 rounded-lg text-[10px] font-semibold bg-rose-500/20 transition-colors"
+                  style={{ color: '#f87171' }}
+                >
+                  Confirm
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setConfirmSignOut(false)}
+                  className="px-2 py-1 rounded-lg text-[10px] font-semibold hover:bg-white/5 transition-colors"
+                  style={{ color: '#5a5a6a' }}
+                >
+                  Cancel
+                </button>
+              </span>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setConfirmSignOut(true)}
+                className="flex-1 flex flex-col items-center justify-center gap-0.5 text-[10px] font-semibold transition-colors"
+                style={{ color: '#5a5a6a' }}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+                Sign out
+              </button>
+            )
           )}
         </div>
       </nav>
