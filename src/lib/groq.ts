@@ -26,6 +26,7 @@ export type DayLesson = {
   objective: string
   activities: string
   assessment: string
+  skills?: string[]    // specific skills being taught, e.g. ["Adding fractions", "Mixed numbers"]
 }
 
 // All subjects found across the week, keyed by date then subject name
@@ -42,17 +43,21 @@ Return ONLY valid JSON in this format (use ISO dates YYYY-MM-DD for the week of 
       "subject": "Math",
       "objective": "One sentence objective",
       "activities": "Brief summary of main activities (1-2 sentences)",
-      "assessment": "Exit ticket or assessment method"
+      "assessment": "Exit ticket or assessment method",
+      "skills": ["Specific skill 1", "Specific skill 2"]
     },
     "Science": {
       "title": "Short lesson name (under 50 chars)",
       "subject": "Science",
       "objective": "One sentence objective",
       "activities": "Brief summary of main activities (1-2 sentences)",
-      "assessment": "Exit ticket or assessment method"
+      "assessment": "Exit ticket or assessment method",
+      "skills": ["Specific skill 1", "Specific skill 2"]
     }
   }
 }
+
+For "skills": extract the 1–4 specific, measurable skills or concepts being taught (e.g. "Adding fractions with unlike denominators", "Identifying the main idea"). If none are clearly stated, omit the field or use an empty array.
 
 Only include days and subjects that have a clear lesson. Do not include any explanation outside the JSON.
 
