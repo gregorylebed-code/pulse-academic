@@ -153,7 +153,18 @@ export default function TrackerScreen(props: TrackerScreenProps) {
                       </button>
                     )}
                   </div>
-                  <p className="text-center text-[11px] mt-1.5" style={{ color: '#3a3a4a' }}>Hold a student circle to add a note</p>
+                  {(() => {
+                    const dayPlan = savedPlan?.schedule[activeLesson?.date ?? '']
+                    const lesson = activeSubject ? dayPlan?.[activeSubject] : (dayPlan ? Object.values(dayPlan).find(l => l.title.trim().toLowerCase() === activeLesson?.title?.trim().toLowerCase()) : undefined)
+                    const skills = lesson?.skills?.filter(Boolean) ?? []
+                    return (
+                      <p className="text-center text-[11px] mt-1.5" style={{ color: '#3a3a4a' }}>
+                        {skills.length >= 2
+                          ? `Hold a student circle to log skills & add a note`
+                          : `Hold a student circle to add a note`}
+                      </p>
+                    )
+                  })()}
                 </div>
               )
             })()}
