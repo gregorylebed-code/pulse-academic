@@ -2,12 +2,13 @@ import type { ReportsScreenProps, AppClass, ReportClass, ReportStudent } from '.
 
 interface ExtraProps extends ReportsScreenProps {
   classLabel: (cls: AppClass) => string
+  showSkills: boolean
 }
 
 export default function ReportsScreen(props: ExtraProps) {
   const {
     classes, classLabel, reportClassId, setReportClassId, reportRange, setReportRange, reportCustomStart, setReportCustomStart, reportCustomEnd,
-    setReportCustomEnd, reportData, copyReport, reportCopied
+    setReportCustomEnd, reportData, copyReport, reportCopied, showSkills
   } = props
 
   const surface = { background: '#161618', border: '1px solid rgba(255,255,255,0.07)' }
@@ -96,7 +97,7 @@ export default function ReportsScreen(props: ExtraProps) {
                     </div>
                   )}
 
-                  {struggledSkills.size > 0 && (
+                  {showSkills && struggledSkills.size > 0 && (
                     <div className="mb-3 pl-4">
                       <p className="text-xs font-bold uppercase tracking-wide mb-2" style={{ color: '#fbbf24' }}>Struggled with</p>
                       <div className="flex flex-col gap-1">

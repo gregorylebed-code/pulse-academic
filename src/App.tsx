@@ -520,10 +520,18 @@ export default function App({ userId, isDemo = false, onSignOut }: Props) {
   const [nameFormat, setNameFormat] = useState<NameFormat>(() =>
     (localStorage.getItem('nameFormat') as NameFormat) ?? 'first'
   )
+  const [showSkills, setShowSkills] = useState<boolean>(
+    () => localStorage.getItem('showSkills') !== 'false'
+  )
   function cycleNameFormat() {
     const next: NameFormat = nameFormat === 'full' ? 'first' : nameFormat === 'first' ? 'initials' : 'full'
     setNameFormat(next)
     localStorage.setItem('nameFormat', next)
+  }
+  function toggleShowSkills() {
+    const next = !showSkills
+    setShowSkills(next)
+    localStorage.setItem('showSkills', String(next))
   }
 
   // Checkin notes (keyed by studentId, scoped to active lesson)
@@ -1252,6 +1260,8 @@ async function handleSuggestExitTicket() {
     rosterRenamingStudent, setRosterRenamingStudent, rosterStudentRenameValue, setRosterStudentRenameValue, rosterRenameStudent,
     expandedRosterClassId, setExpandedRosterClassId,
     cycleNameFormat,
+    showSkills,
+    toggleShowSkills,
     openProfile,
     checkinNotes, atRiskStudentIds, onCirclePointerDown, onCirclePointerUp, onCirclePointerCancel,
   };
@@ -1535,7 +1545,7 @@ async function handleSuggestExitTicket() {
               </p>
               <button type="button" onClick={closeNoteModal} className="text-lg leading-none" style={{ color: '#5a5a6a' }}>✕</button>
             </div>
-            {getActiveLessonSkills().length >= 2 && (
+            {showSkills && getActiveLessonSkills().length >= 2 && (
               <div className="mb-3">
                 <p className="text-xs mb-2" style={{ color: '#8b8b9a' }}>Struggled with:</p>
                 <div className="flex flex-wrap gap-2">

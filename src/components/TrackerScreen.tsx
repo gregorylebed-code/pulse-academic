@@ -7,7 +7,7 @@ export default function TrackerScreen(props: TrackerScreenProps) {
     activeLesson, isDemo, handleSuggestExitTicket, exitTicketLoading, setActiveLesson, setLessonInput, setExitTickets, setActiveExitTicket, setShowExitTickets,
     activeSubject, savedPlan, setLessonInputExternal, startLessonByTitle, formatDate, lessonInput, startLesson, DEMO_LESSONS, selectedClassId,
     showExitTickets, activeExitTicket, exitTickets, currentStudents, loading, studentStatuses, formatStudentName, nameFormat, STATUS_INITIAL_BG, STATUS_RING, STATUS_CARD, tap, confirmAllGotIt,
-    openProfile, checkinNotes, atRiskStudentIds, onCirclePointerDown, onCirclePointerUp, onCirclePointerCancel,
+    openProfile, checkinNotes, atRiskStudentIds, onCirclePointerDown, onCirclePointerUp, onCirclePointerCancel, showSkills,
   } = props
 
   return (
@@ -159,7 +159,7 @@ export default function TrackerScreen(props: TrackerScreenProps) {
                     const skills = lesson?.skills?.filter(Boolean) ?? []
                     return (
                       <p className="text-center text-[11px] mt-1.5" style={{ color: '#3a3a4a' }}>
-                        {skills.length >= 2
+                        {showSkills && skills.length >= 2
                           ? `Hold a student circle to log skills & add a note`
                           : `Hold a student circle to add a note`}
                       </p>

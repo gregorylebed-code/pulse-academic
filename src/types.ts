@@ -100,6 +100,7 @@ export interface TrackerScreenProps {
   onCirclePointerDown: (studentId: string, studentName: string) => void
   onCirclePointerUp: (studentId: string, studentName: string) => void
   onCirclePointerCancel: () => void
+  showSkills: boolean
 }
 
 export interface RosterScreenProps {

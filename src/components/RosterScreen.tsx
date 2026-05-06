@@ -7,6 +7,8 @@ interface ExtraProps extends RosterScreenProps {
   setHistoryClassId: (id: string) => void
   nameFormat: NameFormat
   cycleNameFormat: () => void
+  showSkills: boolean
+  toggleShowSkills: () => void
 }
 
 export default function RosterScreen(props: ExtraProps) {
@@ -19,7 +21,7 @@ export default function RosterScreen(props: ExtraProps) {
     setScreen, setSelectedStudentId, setHistoryClassId,
     rosterRenamingStudent, setRosterRenamingStudent, rosterStudentRenameValue, setRosterStudentRenameValue, rosterRenameStudent,
     expandedRosterClassId, setExpandedRosterClassId,
-    nameFormat, cycleNameFormat
+    nameFormat, cycleNameFormat, showSkills, toggleShowSkills
   } = props
 
   const surface = { background: '#161618', border: '1px solid rgba(255,255,255,0.07)' }
@@ -39,6 +41,15 @@ export default function RosterScreen(props: ExtraProps) {
               style={{ background: 'rgba(255,255,255,0.07)', color: '#8b8b9a' }}
             >
               {nameFormat === 'full' ? 'Full' : nameFormat === 'first' ? 'First' : 'Init'}
+            </button>
+            <button
+              type="button"
+              onClick={toggleShowSkills}
+              title="Toggle skill tracking display"
+              className="shrink-0 text-xs font-semibold px-3 py-2 rounded-xl transition-colors hover:text-teal-400"
+              style={{ background: 'rgba(255,255,255,0.07)', color: showSkills ? '#2dd4bf' : '#8b8b9a' }}
+            >
+              {showSkills ? 'Skills ✓' : 'Skills off'}
             </button>
             {classes.length < 6 && !rosterAddingClass && (
               <button type="button" onClick={() => setRosterAddingClass(true)} className="shrink-0 text-xs font-semibold text-teal-400 hover:text-teal-300 px-3 py-2 rounded-xl" style={{ background: 'rgba(20,184,166,0.1)' }}>

@@ -11,13 +11,14 @@ interface ExtraProps extends HistoryScreenProps {
   lessonDetail: HistoryRow[]
   lessonGroups: { lesson_id: string; lesson_title: string; date: string; rows: HistoryRow[] }[]
   openProfile: (id: string, name: string) => void
+  showSkills: boolean
 }
 
 export default function HistoryScreen(props: ExtraProps) {
   const {
     historyTab, setHistoryTab, setSelectedStudentId, setSelectedLesson, classes, setHistoryClassId, historyClassId, classLabel,
     historyLoading, selectedStudentId, formatStudentName, historyStudents, nameFormat, studentHistoryRows, formatDate, STATUS_PILL, STATUS_LABEL,
-    filteredHistory, selectedLesson, lessonDetail, lessonGroups, openProfile,
+    filteredHistory, selectedLesson, lessonDetail, lessonGroups, openProfile, showSkills,
   } = props
 
   const cardStyle = { background: '#161618', border: '1px solid rgba(255,255,255,0.07)' }
@@ -75,7 +76,7 @@ export default function HistoryScreen(props: ExtraProps) {
                       <div className="min-w-0">
                         <p className="text-sm font-semibold" style={{ color: '#f0f0f2' }}>{row.lesson_title}</p>
                         <p className="text-xs mt-0.5" style={{ color: '#5a5a6a' }}>{formatDate(row.date)} · {row.class_name}</p>
-                        {row.skill?.trim() && (
+                        {showSkills && row.skill?.trim() && (
                           <span className="inline-flex mt-1 px-2 py-0.5 rounded-full text-[10px] font-semibold" style={{ background: 'rgba(20,184,166,0.12)', color: '#2dd4bf' }}>{row.skill}</span>
                         )}
                         {row.note && <p className="text-xs text-indigo-400 mt-1 italic">{row.note}</p>}
@@ -127,7 +128,7 @@ export default function HistoryScreen(props: ExtraProps) {
                       <div className="min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
                           <p className="text-sm font-semibold" style={{ color: '#f0f0f2' }}>{formatStudentName(row.student_name, nameFormat, historyStudents.map((s: AppStudent) => s.name))}</p>
-                          {row.skill?.trim() && (
+                          {showSkills && row.skill?.trim() && (
                             <span className="inline-flex px-2 py-0.5 rounded-full text-[10px] font-semibold" style={{ background: 'rgba(20,184,166,0.12)', color: '#2dd4bf' }}>{row.skill}</span>
                           )}
                         </div>
