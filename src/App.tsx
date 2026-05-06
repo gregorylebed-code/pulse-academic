@@ -432,7 +432,7 @@ export default function App({ userId, isDemo = false, onSignOut }: Props) {
           studentMap.set(row.student_id, { id: row.student_id, name: row.student_name, lessons: [], notes: [] })
         }
         const student = studentMap.get(row.student_id)!
-        student.lessons.push({ title: row.lesson_title, date: row.date, status: row.status as 'needs-help' | 'almost' | 'absent' })
+        student.lessons.push({ title: row.lesson_title, date: row.date, status: row.status as 'needs-help' | 'almost' | 'absent', skill: row.skill ?? null })
         if (row.note?.trim()) student.notes.push({ date: row.date, lessonTitle: row.lesson_title, text: row.note.trim() })
       }
 
@@ -470,6 +470,22 @@ export default function App({ userId, isDemo = false, onSignOut }: Props) {
           for (const n of s.notes.slice(0, 3)) {
             lines.push(`    - Note (${formatDate(n.date)} | ${n.lessonTitle}): ${n.text}`)
           }
+        }
+      }
+      const struggledSkills = new Map<string, Set<string>>()
+      for (const s of cls.needsSupport) {
+        for (const lesson of s.lessons) {
+          if (lesson.status !== 'needs-help') continue
+          if (!lesson.skill?.trim()) continue
+          const skill = lesson.skill.trim()
+          if (!struggledSkills.has(skill)) struggledSkills.set(skill, new Set<string>())
+          struggledSkills.get(skill)!.add(s.id)
+        }
+      }
+      if (struggledSkills.size > 0) {
+        lines.push('Struggled with:')
+        for (const [skill, studentIds] of [...struggledSkills.entries()].sort((a, b) => b[1].size - a[1].size || a[0].localeCompare(b[0]))) {
+          lines.push(`  - ${skill}  ${studentIds.size} student${studentIds.size !== 1 ? 's' : ''}`)
         }
       }
       if (cls.checkIn.length > 0) {
@@ -701,14 +717,14 @@ export default function App({ userId, isDemo = false, onSignOut }: Props) {
       const { data } = await supabase
         .from('checkins')
         .select(`
-          id, status, note,
+          id, status, note, skill,
           lessons(id, title, date, class_id, classes(id, name)),
           students(id, name)
         `)
         .eq('user_id', userId)
         .gte('created_at', schoolYearStart.toISOString())
         .order('created_at', { ascending: false })
-      type RawCheckin = { status: string; note?: string; lessons: { id: string; title: string; date: string; class_id: string; classes: { name: string } } | null; students: { id: string; name: string } | null }
+      type RawCheckin = { status: string; note?: string; skill?: string | null; lessons: { id: string; title: string; date: string; class_id: string; classes: { name: string } } | null; students: { id: string; name: string } | null }
       const rows: HistoryRow[] = ((data ?? []) as unknown as RawCheckin[]).map(r => ({
         class_id: r.lessons?.class_id ?? '',
         class_name: r.lessons?.classes?.name ?? '',
@@ -719,6 +735,7 @@ export default function App({ userId, isDemo = false, onSignOut }: Props) {
         date: r.lessons?.date ?? '',
         status: r.status,
         note: r.note ?? undefined,
+        skill: r.skill ?? null,
       }))
       setHistoryData(rows)
       setHistoryLoading(false)
@@ -1563,3 +1580,4 @@ async function handleSuggestExitTicket() {
     </div>
   )
 }
+

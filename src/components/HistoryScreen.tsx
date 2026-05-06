@@ -75,6 +75,9 @@ export default function HistoryScreen(props: ExtraProps) {
                       <div className="min-w-0">
                         <p className="text-sm font-semibold" style={{ color: '#f0f0f2' }}>{row.lesson_title}</p>
                         <p className="text-xs mt-0.5" style={{ color: '#5a5a6a' }}>{formatDate(row.date)} · {row.class_name}</p>
+                        {row.skill?.trim() && (
+                          <span className="inline-flex mt-1 px-2 py-0.5 rounded-full text-[10px] font-semibold" style={{ background: 'rgba(20,184,166,0.12)', color: '#2dd4bf' }}>{row.skill}</span>
+                        )}
                         {row.note && <p className="text-xs text-indigo-400 mt-1 italic">{row.note}</p>}
                       </div>
                       <span className={`text-xs font-semibold px-2.5 py-1 rounded-full shrink-0 ${STATUS_PILL[row.status as keyof typeof STATUS_PILL]}`}>{STATUS_LABEL[row.status as keyof typeof STATUS_LABEL]}</span>
@@ -122,7 +125,12 @@ export default function HistoryScreen(props: ExtraProps) {
                   {lessonDetail.sort((a: HistoryRow, b: HistoryRow) => a.student_name.localeCompare(b.student_name)).map((row: HistoryRow, i: number) => (
                     <div key={i} className="rounded-2xl px-4 py-3 flex items-start justify-between gap-3" style={cardStyle}>
                       <div className="min-w-0">
-                        <p className="text-sm font-semibold" style={{ color: '#f0f0f2' }}>{formatStudentName(row.student_name, nameFormat, historyStudents.map((s: AppStudent) => s.name))}</p>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="text-sm font-semibold" style={{ color: '#f0f0f2' }}>{formatStudentName(row.student_name, nameFormat, historyStudents.map((s: AppStudent) => s.name))}</p>
+                          {row.skill?.trim() && (
+                            <span className="inline-flex px-2 py-0.5 rounded-full text-[10px] font-semibold" style={{ background: 'rgba(20,184,166,0.12)', color: '#2dd4bf' }}>{row.skill}</span>
+                          )}
+                        </div>
                         {row.note && <p className="text-xs text-indigo-400 mt-0.5 italic">{row.note}</p>}
                       </div>
                       <span className={`text-xs font-semibold px-2.5 py-1 rounded-full shrink-0 ${STATUS_PILL[row.status as keyof typeof STATUS_PILL]}`}>{STATUS_LABEL[row.status as keyof typeof STATUS_LABEL]}</span>

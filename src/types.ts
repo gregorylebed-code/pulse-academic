@@ -37,6 +37,7 @@ export type HistoryRow = {
   date: string
   status: string
   note?: string
+  skill?: string | null
 }
 
 export type SavedPlan = {
@@ -49,7 +50,7 @@ export type SavedPlan = {
 export type ReportStudent = {
   id: string
   name: string
-  lessons: { title: string; date: string; status: 'needs-help' | 'almost' | 'absent' }[]
+  lessons: { title: string; date: string; status: 'needs-help' | 'almost' | 'absent'; skill?: string | null }[]
   notes: { date: string; lessonTitle: string; text: string }[]
 }
 
