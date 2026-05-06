@@ -1191,6 +1191,20 @@ async function handleSuggestExitTicket() {
     checkinNotes, onCirclePointerDown, onCirclePointerUp, onCirclePointerCancel,
   };
 
+  const atRiskStudentIds = useMemo(() => {
+    const ids = new Set<string>()
+    for (const student of currentStudents) {
+      const rows = historyData
+        .filter(r => r.student_id === student.id)
+        .sort((a, b) => b.date.localeCompare(a.date))
+        .slice(0, 3)
+      if (rows.length === 3 && rows.every(r => r.status === 'needs-help')) {
+        ids.add(student.id)
+      }
+    }
+    return ids
+  }, [historyData, currentStudents])
+
   return (
     <div className="min-h-screen flex flex-col overflow-x-hidden pb-20" style={{ background: '#0d0d0f' }}>
       {/* Header */}
@@ -1332,7 +1346,7 @@ async function handleSuggestExitTicket() {
 
       {/* ── PLAN SCREEN ── */}
       {screen === 'plan' && <PlanScreen {...screenProps} />}
-      {screen === 'tracker' && <TrackerScreen {...screenProps} savedPlan={currentWeekPlan} />}
+      {screen === 'tracker' && <TrackerScreen {...screenProps} savedPlan={currentWeekPlan} atRiskStudentIds={atRiskStudentIds} />}
       {screen === 'history' && <HistoryScreen {...screenProps} />}
       {screen === 'reports' && <ReportsScreen {...screenProps} />}
       {screen === 'roster' && <RosterScreen {...screenProps} />}

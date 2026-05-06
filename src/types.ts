@@ -95,6 +95,7 @@ export interface TrackerScreenProps {
   confirmAllGotIt: () => void
   openProfile: (id: string, name: string) => void
   checkinNotes: Record<string, string>
+  atRiskStudentIds: Set<string>
   onCirclePointerDown: (studentId: string, studentName: string) => void
   onCirclePointerUp: (studentId: string, studentName: string) => void
   onCirclePointerCancel: () => void
@@ -215,3 +216,4 @@ export interface PlanScreenProps {
   skipSubject: (date: string, subject: string, pushRemaining: boolean) => void
   formatDate: (iso: string) => string
 }
+

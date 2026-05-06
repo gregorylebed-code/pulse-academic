@@ -7,7 +7,7 @@ export default function TrackerScreen(props: TrackerScreenProps) {
     activeLesson, isDemo, handleSuggestExitTicket, exitTicketLoading, setActiveLesson, setLessonInput, setExitTickets, setActiveExitTicket, setShowExitTickets,
     activeSubject, savedPlan, setLessonInputExternal, startLessonByTitle, formatDate, lessonInput, startLesson, DEMO_LESSONS, selectedClassId,
     showExitTickets, activeExitTicket, exitTickets, currentStudents, loading, studentStatuses, formatStudentName, nameFormat, STATUS_INITIAL_BG, STATUS_RING, STATUS_CARD, tap, confirmAllGotIt,
-    openProfile, checkinNotes, onCirclePointerDown, onCirclePointerUp, onCirclePointerCancel,
+    openProfile, checkinNotes, atRiskStudentIds, onCirclePointerDown, onCirclePointerUp, onCirclePointerCancel,
   } = props
 
   return (
@@ -189,6 +189,9 @@ export default function TrackerScreen(props: TrackerScreenProps) {
                   >
                     {displayName}
                   </button>
+                  {atRiskStudentIds.has(student.id) && (
+                    <span className="text-[9px] font-bold text-red-400 leading-none">at risk</span>
+                  )}
                 </div>
               )
             })}
