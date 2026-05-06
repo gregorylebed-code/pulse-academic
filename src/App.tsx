@@ -529,6 +529,36 @@ export default function App({ userId, isDemo = false, onSignOut }: Props) {
     setNoteText('')
   }
 
+  function getActiveLessonSkills(): string[] {
+    if (!activeLesson || !savedPlan) return []
+    const dayPlan = savedPlan.schedule[activeLesson.date]
+    if (!dayPlan) return []
+
+    const byActiveSubject = activeSubject ? dayPlan[activeSubject] : undefined
+    const byTitle = Object.values(dayPlan).find(
+      l => l.title.trim().toLowerCase() === activeLesson.title.trim().toLowerCase()
+    )
+    const rawSkills = (byActiveSubject?.skills ?? byTitle?.skills ?? [])
+      .map(s => s.trim())
+      .filter(Boolean)
+    return [...new Set(rawSkills)]
+  }
+
+  function buildCheckinRows(lessonId: string, studentId: string, status: Status, note?: string | null) {
+    const skills = getActiveLessonSkills()
+    const base = {
+      user_id: userId,
+      lesson_id: lessonId,
+      student_id: studentId,
+      status,
+      note: note ?? null,
+    }
+    if (skills.length > 0) {
+      return skills.map(skill => ({ ...base, skill }))
+    }
+    return [{ ...base, skill: null as string | null }]
+  }
+
   async function saveNote() {
     if (!noteModal || !activeLesson || isDemo) { closeNoteModal(); return }
     const { studentId } = noteModal
@@ -537,8 +567,8 @@ export default function App({ userId, isDemo = false, onSignOut }: Props) {
     await supabase
       .from('checkins')
       .upsert(
-        { user_id: userId, lesson_id: activeLesson.id, student_id: studentId, status: studentStatuses[studentId] ?? 'got-it', note: trimmed || null },
-        { onConflict: 'lesson_id,student_id' }
+        buildCheckinRows(activeLesson.id, studentId, studentStatuses[studentId] ?? 'got-it', trimmed || null),
+        { onConflict: 'lesson_id,student_id,skill' }
       )
     closeNoteModal()
   }
@@ -804,8 +834,8 @@ export default function App({ userId, isDemo = false, onSignOut }: Props) {
       supabase
         .from('checkins')
         .upsert(
-          { user_id: userId, lesson_id: activeLesson.id, student_id: studentId, status: next },
-          { onConflict: 'lesson_id,student_id' }
+          buildCheckinRows(activeLesson.id, studentId, next, checkinNotes[studentId] ?? null),
+          { onConflict: 'lesson_id,student_id,skill' }
         )
         .then()
       return { ...cur, [studentId]: next }
@@ -824,8 +854,8 @@ export default function App({ userId, isDemo = false, onSignOut }: Props) {
     supabase
       .from('checkins')
       .upsert(
-        unmarked.map(s => ({ user_id: userId, lesson_id: activeLesson.id, student_id: s.id, status: 'got-it' })),
-        { onConflict: 'lesson_id,student_id' }
+        unmarked.flatMap(s => buildCheckinRows(activeLesson.id, s.id, 'got-it', checkinNotes[s.id] ?? null)),
+        { onConflict: 'lesson_id,student_id,skill' }
       )
       .then()
   }
