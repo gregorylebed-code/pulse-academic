@@ -657,15 +657,12 @@ export default function App({ userId, isDemo = false, onSignOut }: Props) {
     }
     async function loadHistory() {
       setHistoryLoading(true)
+      // Loads since Sep 1 of the current school year (~4,500 rows max at 25 students x 180 days).
+      // Fast today. If history ever feels slow, shrink this window first.
       const now = new Date()
-      const m = now.getMonth()
-      const y = now.getFullYear()
-      let startOfQuarter: Date
-      if (m >= 10) startOfQuarter = new Date(y, 10, 1)
-      else if (m >= 8) startOfQuarter = new Date(y, 8, 1)
-      else if (m >= 3) startOfQuarter = new Date(y, 3, 1)
-      else if (m >= 1) startOfQuarter = new Date(y, 1, 1)
-      else startOfQuarter = new Date(y - 1, 10, 1)
+      const schoolYearStart = now.getMonth() >= 8
+        ? new Date(now.getFullYear(), 8, 1)
+        : new Date(now.getFullYear() - 1, 8, 1)
 
       const { data } = await supabase
         .from('checkins')
@@ -675,7 +672,7 @@ export default function App({ userId, isDemo = false, onSignOut }: Props) {
           students(id, name)
         `)
         .eq('user_id', userId)
-        .gte('created_at', startOfQuarter.toISOString())
+        .gte('created_at', schoolYearStart.toISOString())
         .order('created_at', { ascending: false })
       type RawCheckin = { status: string; note?: string; lessons: { id: string; title: string; date: string; class_id: string; classes: { name: string } } | null; students: { id: string; name: string } | null }
       const rows: HistoryRow[] = ((data ?? []) as unknown as RawCheckin[]).map(r => ({
