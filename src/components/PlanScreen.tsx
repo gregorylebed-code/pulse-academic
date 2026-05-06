@@ -125,12 +125,23 @@ export default function PlanScreen(props: ExtraProps) {
                       <div key={field}>
                         <p className="text-xs uppercase tracking-wide mb-0.5" style={{ color: '#5a5a6a' }}>{field}</p>
                         {field !== 'title' ? (
-                          <textarea value={editDraft[field]} onChange={e => setEditDraft({ ...editDraft, [field]: e.target.value })} rows={2} className="w-full text-sm rounded-xl px-3 py-2 outline-none border focus:border-teal-500 resize-none" style={inputStyle} />
+                          <textarea value={editDraft[field] as string} onChange={e => setEditDraft({ ...editDraft, [field]: e.target.value })} rows={2} className="w-full text-sm rounded-xl px-3 py-2 outline-none border focus:border-teal-500 resize-none" style={inputStyle} />
                         ) : (
-                          <input type="text" value={editDraft[field]} onChange={e => setEditDraft({ ...editDraft, [field]: e.target.value })} className="w-full text-sm rounded-xl px-3 py-2 outline-none border focus:border-teal-500" style={inputStyle} />
+                          <input type="text" value={editDraft[field] as string} onChange={e => setEditDraft({ ...editDraft, [field]: e.target.value })} className="w-full text-sm rounded-xl px-3 py-2 outline-none border focus:border-teal-500" style={inputStyle} />
                         )}
                       </div>
                     ))}
+                    <div>
+                      <p className="text-xs uppercase tracking-wide mb-0.5" style={{ color: '#5a5a6a' }}>Skills <span className="normal-case" style={{ color: '#3a3a4a' }}>(comma-separated)</span></p>
+                      <input
+                        type="text"
+                        value={(editDraft.skills ?? []).join(', ')}
+                        onChange={e => setEditDraft({ ...editDraft, skills: e.target.value.split(',').map(s => s.trim()).filter(Boolean) })}
+                        placeholder="e.g. Adding fractions, Mixed numbers"
+                        className="w-full text-sm rounded-xl px-3 py-2 outline-none border focus:border-teal-500"
+                        style={inputStyle}
+                      />
+                    </div>
                   </div>
                   <div className="flex gap-2 mt-3">
                     <button type="button" onClick={saveEdit} className="px-4 py-1.5 bg-teal-500 text-white text-xs font-semibold rounded-xl">Save</button>
@@ -190,6 +201,22 @@ export default function PlanScreen(props: ExtraProps) {
                                 <p className="text-sm" style={{ color: '#c0c0cc' }}>{lesson[f]}</p>
                               </div>
                             ))}
+                            {lesson.skills && lesson.skills.length > 0 && (
+                              <div>
+                                <p className="text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: '#5a5a6a' }}>Skills</p>
+                                <div className="flex flex-wrap gap-1.5">
+                                  {lesson.skills.map(skill => (
+                                    <span key={skill} className="px-2.5 py-1 rounded-full text-xs font-semibold" style={{ background: 'rgba(20,184,166,0.12)', color: '#2dd4bf' }}>{skill}</span>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                            {(!lesson.skills || lesson.skills.length === 0) && (
+                              <div>
+                                <p className="text-xs font-semibold uppercase tracking-wide mb-0.5" style={{ color: '#5a5a6a' }}>Skills</p>
+                                <p className="text-xs italic" style={{ color: '#3a3a4a' }}>None extracted — edit to add skills manually</p>
+                              </div>
+                            )}
                           </div>
                           <div className="flex flex-wrap gap-2 mt-2">
                             <button type="button" onClick={() => startEdit(dateISO, subj)} className="text-xs font-semibold px-3 py-1.5 rounded-xl hover:bg-teal-900/30 transition-colors" style={{ background: 'rgba(255,255,255,0.07)', color: '#8b8b9a' }}>✏️ Edit</button>
