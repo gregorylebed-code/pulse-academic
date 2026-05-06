@@ -164,6 +164,7 @@ export default function PlanScreen(props: ExtraProps) {
                         <div key={subj} className="flex items-baseline gap-2">
                           <span className="text-xs font-semibold w-14 shrink-0" style={{ color: '#5a5a6a' }}>{subj}</span>
                           <span className="text-sm font-semibold truncate" style={{ color: '#f0f0f2' }}>{dayLessons[subj].title}</span>
+          {!swapSource && !swapSubjectSource && <span className="shrink-0 text-xs" style={{ color: '#3a3a4a' }}>✏️</span>}
                           {isSwapSubjSrc && <span className="text-xs text-amber-400 font-semibold shrink-0">← swapping</span>}
                           {isSubjectSwapTarget && swapSubjectSource?.subject === subj && (
                             <button type="button" onClick={e => { e.stopPropagation(); handleSwapSubject(dateISO, subj) }} className="text-xs font-semibold text-amber-400 underline shrink-0">swap here</button>
