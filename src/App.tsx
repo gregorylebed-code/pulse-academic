@@ -1182,6 +1182,20 @@ async function handleSuggestExitTicket() {
     return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`
   }
 
+  const atRiskStudentIds = useMemo(() => {
+    const ids = new Set<string>()
+    for (const student of currentStudents) {
+      const rows = historyData
+        .filter(r => r.student_id === student.id)
+        .sort((a, b) => b.date.localeCompare(a.date))
+        .slice(0, 3)
+      if (rows.length === 3 && rows.every(r => r.status === 'needs-help')) {
+        ids.add(student.id)
+      }
+    }
+    return ids
+  }, [historyData, currentStudents])
+
   // ── Render ────────────────────────────────────────────────────────────────
 
   if (dataLoading) {
@@ -1218,22 +1232,8 @@ async function handleSuggestExitTicket() {
     expandedRosterClassId, setExpandedRosterClassId,
     cycleNameFormat,
     openProfile,
-    checkinNotes, onCirclePointerDown, onCirclePointerUp, onCirclePointerCancel,
+    checkinNotes, atRiskStudentIds, onCirclePointerDown, onCirclePointerUp, onCirclePointerCancel,
   };
-
-  const atRiskStudentIds = useMemo(() => {
-    const ids = new Set<string>()
-    for (const student of currentStudents) {
-      const rows = historyData
-        .filter(r => r.student_id === student.id)
-        .sort((a, b) => b.date.localeCompare(a.date))
-        .slice(0, 3)
-      if (rows.length === 3 && rows.every(r => r.status === 'needs-help')) {
-        ids.add(student.id)
-      }
-    }
-    return ids
-  }, [historyData, currentStudents])
 
   return (
     <div className="min-h-screen flex flex-col overflow-x-hidden pb-20" style={{ background: '#0d0d0f' }}>
