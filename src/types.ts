@@ -3,9 +3,10 @@ import type { DemoLesson } from './lib/demo'
 
 export type Status = 'got-it' | 'almost' | 'needs-help' | 'absent'
 export type ReportRange = 'today' | 'week' | 'month' | 'custom' | 'all'
-export type Screen = 'tracker' | 'history' | 'plan' | 'roster' | 'reports'
+export type Screen = 'tracker' | 'history' | 'plan' | 'roster' | 'reports' | 'skills'
 export type HistoryTab = 'student' | 'lesson'
 export type NameFormat = 'full' | 'first' | 'initials'
+export type MasteryLevel = 0 | 1 | 2 | 3
 
 export type AppClass = {
   id: string
@@ -17,6 +18,19 @@ export type AppClass = {
 export type AppStudent = {
   id: string
   name: string
+}
+
+export type AppSkill = {
+  id: string
+  class_id: string
+  name: string
+  display_order: number
+}
+
+export type AppSkillMastery = {
+  skill_id: string
+  student_id: string
+  level: MasteryLevel
 }
 
 export type AppLesson = {
@@ -215,5 +229,19 @@ export interface PlanScreenProps {
   setSkipConfirmSubject: (val: { dateISO: string; subject: string } | null) => void
   skipSubject: (date: string, subject: string, pushRemaining: boolean) => void
   formatDate: (iso: string) => string
+}
+
+export interface SkillsScreenProps {
+  classes: AppClass[]
+  students: AppStudent[]
+  studentClasses: { student_id: string; class_id: string }[]
+  skills: AppSkill[]
+  masteryMap: Record<string, Record<string, MasteryLevel>>
+  selectedClassId: string
+  onSelectClass: (id: string) => void
+  onAddSkill: (name: string) => Promise<void>
+  onDeleteSkill: (skillId: string) => Promise<void>
+  onSetMastery: (skillId: string, studentId: string, level: MasteryLevel) => Promise<void>
+  nameFormat: NameFormat
 }
 

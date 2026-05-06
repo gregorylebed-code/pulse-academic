@@ -11,10 +11,12 @@ import TrackerScreen from './components/TrackerScreen'
 import HistoryScreen from './components/HistoryScreen'
 import ReportsScreen from './components/ReportsScreen'
 import RosterScreen from './components/RosterScreen'
+import SkillsScreen from './components/SkillsScreen'
 import StudentProfileSheet from './components/StudentProfileSheet'
 import MicButton from './components/MicButton'
+import { BookOpen } from 'lucide-react'
 
-import type { Status, Screen, HistoryTab, NameFormat, AppClass, AppStudent, AppLesson, HistoryRow, SavedPlan, ReportClass, ReportRange, ReportStudent } from './types'
+import type { Status, Screen, HistoryTab, NameFormat, AppClass, AppStudent, AppLesson, HistoryRow, SavedPlan, ReportClass, ReportRange, ReportStudent, AppSkill, AppSkillMastery, MasteryLevel } from './types'
 
 // ── Constants ─────────────────────────────────────────────────────────────
 
@@ -184,11 +186,14 @@ export default function App({ userId, isDemo = false, onSignOut }: Props) {
   const [classes, setClasses] = useState<AppClass[]>([])
   const [studentsByClass, setStudentsByClass] = useState<Record<string, AppStudent[]>>({})
   const [dataLoading, setDataLoading] = useState(true)
+  const [skills, setSkills] = useState<AppSkill[]>([])
+  const [masteryRows, setMasteryRows] = useState<AppSkillMastery[]>([])
 
   // ── UI state ──
   const [confirmSignOut, setConfirmSignOut] = useState(false)
   const [screen, setScreen] = useState<Screen>('tracker')
   const [selectedClassId, setSelectedClassId] = useState<string>('')
+  const [selectedSkillClassId, setSelectedSkillClassId] = useState<string>('')
   const [lessonInput, setLessonInput] = useState('')
   const [activeLesson, setActiveLesson] = useState<AppLesson | null>(null)
   const [studentStatuses, setStudentStatuses] = useState<Record<string, Status>>({})
@@ -602,6 +607,57 @@ export default function App({ userId, isDemo = false, onSignOut }: Props) {
     holdStudentRef.current = null
   }
 
+  const masteryMap = useMemo(() => {
+    const m: Record<string, Record<string, MasteryLevel>> = {}
+    for (const r of masteryRows) {
+      if (!m[r.skill_id]) m[r.skill_id] = {}
+      m[r.skill_id][r.student_id] = r.level
+    }
+    return m
+  }, [masteryRows])
+
+  async function fetchSkills(uid: string) {
+    const { data } = await supabase
+      .from('skills')
+      .select('id, class_id, name, display_order')
+      .eq('user_id', uid)
+      .order('display_order')
+    setSkills((data ?? []) as AppSkill[])
+  }
+
+  async function fetchMastery(uid: string) {
+    const { data } = await supabase
+      .from('skill_mastery')
+      .select('skill_id, student_id, level')
+      .eq('user_id', uid)
+    setMasteryRows((data ?? []) as AppSkillMastery[])
+  }
+
+  async function addSkill(name: string) {
+    const classSkills = skills.filter(s => s.class_id === selectedSkillClassId)
+    await supabase
+      .from('skills')
+      .insert({ user_id: userId, class_id: selectedSkillClassId, name, display_order: classSkills.length })
+    await fetchSkills(userId)
+  }
+
+  async function deleteSkill(skillId: string) {
+    await supabase.from('skills').delete().eq('id', skillId)
+    await supabase.from('skill_mastery').delete().eq('skill_id', skillId)
+    await fetchSkills(userId)
+    await fetchMastery(userId)
+  }
+
+  async function setMastery(skillId: string, studentId: string, level: MasteryLevel) {
+    await supabase
+      .from('skill_mastery')
+      .upsert(
+        { user_id: userId, skill_id: skillId, student_id: studentId, level, updated_at: new Date().toISOString() },
+        { onConflict: 'skill_id,student_id' }
+      )
+    await fetchMastery(userId)
+  }
+
   // ── Load classes + students ──────────────────────────────────────────────
 
   useEffect(() => {
@@ -615,9 +671,12 @@ export default function App({ userId, isDemo = false, onSignOut }: Props) {
       setTimeout(() => {
         setClasses(demoClasses)
         setSelectedClassId(demoClasses[0]?.id ?? '')
+        setSelectedSkillClassId(demoClasses[0]?.id ?? '')
         setHistoryClassId(demoClasses[0]?.id ?? '')
         setStudentsByClass(byClass)
         setHistoryData(buildDemoHistory())
+        setSkills([])
+        setMasteryRows([])
         setDataLoading(false)
       }, 0)
       return
@@ -634,6 +693,7 @@ export default function App({ userId, isDemo = false, onSignOut }: Props) {
       const loaded = cls ?? []
       setClasses(loaded)
       setSelectedClassId(loaded[0]?.id ?? '')
+      setSelectedSkillClassId(loaded[0]?.id ?? '')
       setHistoryClassId(loaded[0]?.id ?? '')
 
       if (loaded.length === 0) { setDataLoading(false); return }
@@ -651,6 +711,8 @@ export default function App({ userId, isDemo = false, onSignOut }: Props) {
         if (s && byClass[row.class_id]) byClass[row.class_id].push(s)
       }
       setStudentsByClass(byClass)
+      await fetchSkills(userId)
+      await fetchMastery(userId)
       setDataLoading(false)
     }
     load()
@@ -744,6 +806,12 @@ export default function App({ userId, isDemo = false, onSignOut }: Props) {
       })
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [screen, userId, isDemo, activePlanWeekStart, selectedClassId])
+
+  useEffect(() => {
+    if (!classes.find(c => c.id === selectedSkillClassId)) {
+      setSelectedSkillClassId(classes[0]?.id ?? '')
+    }
+  }, [classes, selectedSkillClassId])
 
   // ── Lesson actions ────────────────────────────────────────────────────────
 
@@ -1150,6 +1218,24 @@ async function handleSuggestExitTicket() {
 
   const currentStudents = studentsByClass[selectedClassId] ?? []
   const historyStudents = studentsByClass[historyClassId] ?? []
+  const students = useMemo(() => {
+    const map = new Map<string, AppStudent>()
+    for (const classStudents of Object.values(studentsByClass)) {
+      for (const student of classStudents) {
+        map.set(student.id, student)
+      }
+    }
+    return [...map.values()]
+  }, [studentsByClass])
+  const studentClasses = useMemo(() => {
+    const rows: { student_id: string; class_id: string }[] = []
+    for (const [classId, classStudents] of Object.entries(studentsByClass)) {
+      for (const student of classStudents) {
+        rows.push({ student_id: student.id, class_id: classId })
+      }
+    }
+    return rows
+  }, [studentsByClass])
 
   const filteredHistory = historyData.filter(r => r.class_id === historyClassId)
 
@@ -1289,6 +1375,14 @@ async function handleSuggestExitTicket() {
             >
               {screen === 'reports' ? 'Done' : 'Reports'}
             </button>
+            <button
+              type="button"
+              onClick={() => setScreen(screen === 'skills' ? 'tracker' : 'skills')}
+              className={`rounded-xl px-3 py-2 text-sm font-semibold transition-colors ${screen === 'skills' ? 'bg-teal-900/50 text-teal-400' : 'hover:bg-white/5'}`}
+              style={screen !== 'skills' ? { color: '#8b8b9a' } : {}}
+            >
+              {screen === 'skills' ? 'Done' : 'Skills'}
+            </button>
             {(screen === 'plan') && (
               <button type="button" onClick={() => setScreen('tracker')} className="rounded-xl px-3 py-2 text-sm font-semibold hover:bg-white/5" style={{ color: '#8b8b9a' }}>Done</button>
             )}
@@ -1380,6 +1474,21 @@ async function handleSuggestExitTicket() {
       {screen === 'history' && <HistoryScreen {...screenProps} />}
       {screen === 'reports' && <ReportsScreen {...screenProps} />}
       {screen === 'roster' && <RosterScreen {...screenProps} />}
+      {screen === 'skills' && (
+        <SkillsScreen
+          classes={classes}
+          students={students}
+          studentClasses={studentClasses}
+          skills={skills}
+          masteryMap={masteryMap}
+          selectedClassId={selectedSkillClassId}
+          onSelectClass={setSelectedSkillClassId}
+          onAddSkill={addSkill}
+          onDeleteSkill={deleteSkill}
+          onSetMastery={setMastery}
+          nameFormat={nameFormat}
+        />
+      )}
       
       {/* ── Bottom tab bar ── revert: remove this block + remove pb-20 above + change "hidden" back to "flex" on header nav div */}
       <nav className="fixed bottom-0 left-0 right-0 backdrop-blur z-50" style={{ background: 'rgba(17,17,19,0.97)', borderTop: '1px solid rgba(255,255,255,0.07)' }}>
@@ -1456,6 +1565,18 @@ async function handleSuggestExitTicket() {
             </svg>
             Reports
             {screen === 'reports' && <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-8 h-0.5 bg-rose-400 rounded-full" />}
+          </button>
+
+          {/* Skills */}
+          <button
+            type="button"
+            onClick={() => { setScreen('skills'); setSelectedStudentId(null); setSelectedLesson(null) }}
+            className="flex-1 flex flex-col items-center justify-center gap-0.5 text-[10px] font-semibold transition-colors relative"
+            style={{ color: screen === 'skills' ? '#2dd4bf' : '#5a5a6a' }}
+          >
+            <BookOpen className="w-5 h-5" />
+            Skills
+            {screen === 'skills' && <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-8 h-0.5 bg-teal-400 rounded-full" />}
           </button>
 
           {/* Sign out */}
