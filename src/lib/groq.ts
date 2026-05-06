@@ -60,6 +60,7 @@ Return ONLY valid JSON in this format (use ISO dates YYYY-MM-DD for the week of 
 For "skills": extract the 1–4 specific, measurable skills or concepts being taught (e.g. "Adding fractions with unlike denominators", "Identifying the main idea"). If none are clearly stated, omit the field or use an empty array.
 
 Only include days and subjects that have a clear lesson. Do not include any explanation outside the JSON.
+Strip all LaTeX math notation (e.g. $1/4$, $0$ to $1$) — write fractions and expressions in plain text (e.g. 1/4, 0 to 1).
 
 Lesson plan text:
 ${text.slice(0, 6000)}`
