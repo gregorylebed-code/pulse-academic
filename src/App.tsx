@@ -167,11 +167,12 @@ type Props = {
   userId: string
   isDemo?: boolean
   onSignOut: () => void
+  onNeedsSetup?: () => void
 }
 
 // ── App ───────────────────────────────────────────────────────────────────
 
-export default function App({ userId, isDemo = false, onSignOut }: Props) {
+export default function App({ userId, isDemo = false, onSignOut, onNeedsSetup }: Props) {
   const today = todayISO()
   const weekStart = getWeekStart(today)
   const nextWeekStart = (() => {
@@ -671,13 +672,17 @@ export default function App({ userId, isDemo = false, onSignOut }: Props) {
         .order('display_order')
 
       const loaded = cls ?? []
+
+      if (loaded.length === 0) {
+        setDataLoading(false)
+        onNeedsSetup?.()
+        return
+      }
+
       setClasses(loaded)
       setSelectedClassId(loaded[0]?.id ?? '')
       setHistoryClassId(loaded[0]?.id ?? '')
 
-      if (loaded.length === 0) { setDataLoading(false); return }
-
-      // Load all students for this teacher via student_classes join
       const { data: scRows } = await supabase
         .from('student_classes')
         .select('class_id, students(id, name)')
@@ -905,9 +910,9 @@ export default function App({ userId, isDemo = false, onSignOut }: Props) {
       .then(() => setHistoryVersion(v => v + 1))
   }
 
-  function dismissCheckin(studentId: string, lessonId: string, skill: string | null | undefined) {
+  function dismissCheckin(studentId: string, lessonId: string, skill: string | null | undefined, fromStatus?: Status) {
     setHistoryData(cur => cur.map(r =>
-      r.student_id === studentId && r.lesson_id === lessonId && (r.skill ?? null) === (skill ?? null) && r.status === 'needs-help'
+      r.student_id === studentId && r.lesson_id === lessonId && (r.skill ?? null) === (skill ?? null) && (!fromStatus || r.status === fromStatus)
         ? { ...r, status: 'got-it' }
         : r
     ))
@@ -1257,12 +1262,7 @@ async function handleSuggestExitTicket() {
   // ── Render ────────────────────────────────────────────────────────────────
 
   if (dataLoading) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center gap-3" style={{ background: '#0d0d0f' }}>
-        <svg className="animate-spin h-8 w-8 text-teal-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
-        <p className="text-sm" style={{ color: '#8b8b9a' }}>Loading…</p>
-      </div>
-    )
+    return <div className="min-h-screen" style={{ background: '#0d0d0f' }} />
   }
 
   const screenProps = {

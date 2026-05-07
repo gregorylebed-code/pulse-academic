@@ -20,11 +20,11 @@ export default function ReportsScreen(props: ExtraProps) {
     return `${studentId}|${lessonId}|${skill ?? ''}`
   }
 
-  function handleDismiss(studentId: string, lessonId: string, skill: string | null | undefined) {
+  function handleDismiss(studentId: string, lessonId: string, skill: string | null | undefined, fromStatus?: string) {
     const key = dismissKey(studentId, lessonId, skill)
     setPendingDismiss(cur => new Set([...cur, key]))
     const t = setTimeout(() => {
-      dismissCheckin(studentId, lessonId, skill)
+      dismissCheckin(studentId, lessonId, skill, fromStatus as import('../types').Status)
       setPendingDismiss(cur => { const next = new Set(cur); next.delete(key); return next })
       timerRefs.current.delete(key)
     }, 3000)
@@ -118,7 +118,7 @@ export default function ReportsScreen(props: ExtraProps) {
                                     Undo
                                   </button>
                                 ) : (
-                                  <button type="button" onClick={() => handleDismiss(s.id, l.lessonId, l.skill)} className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 transition-colors" style={{ background: 'rgba(52,211,153,0.12)', color: '#34d399' }} title="Mark as remediated">
+                                  <button type="button" onClick={() => handleDismiss(s.id, l.lessonId, l.skill, 'needs-help')} className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 transition-colors" style={{ background: 'rgba(52,211,153,0.12)', color: '#34d399' }} title="Mark as remediated">
                                     <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
                                   </button>
                                 )}
@@ -138,13 +138,29 @@ export default function ReportsScreen(props: ExtraProps) {
                       </div>
                       <div className="flex flex-col gap-1">
                         {cls.checkIn.map((s: ReportStudent) => {
-                          const topics = [...new Set(s.lessons.filter(l => l.status === 'almost').map(l => (showSkills && l.skill?.trim()) ? l.skill.trim() : l.title))]
-                          return topics.map(topic => (
-                            <div key={`${s.id}|${topic}`} className="pl-4 py-1">
-                              <p className="text-sm font-semibold" style={{ color: '#f0f0f2' }}>{s.name}</p>
-                              <p className="text-xs mt-0.5" style={{ color: '#5a5a6a' }}>{topic}</p>
-                            </div>
-                          ))
+                          const rows = s.lessons.filter(l => l.status === 'almost')
+                          return rows.map(l => {
+                            const label = (showSkills && l.skill?.trim()) ? l.skill.trim() : l.title
+                            const key = dismissKey(s.id, l.lessonId, l.skill)
+                            const isPending = pendingDismiss.has(key)
+                            return (
+                              <div key={key} className={`flex items-center justify-between gap-2 pl-4 py-1 transition-opacity ${isPending ? 'opacity-40' : ''}`}>
+                                <div className="min-w-0">
+                                  <p className="text-sm font-semibold" style={{ color: '#f0f0f2' }}>{s.name}</p>
+                                  <p className="text-xs mt-0.5" style={{ color: '#5a5a6a' }}>{label}</p>
+                                </div>
+                                {isPending ? (
+                                  <button type="button" onClick={() => handleUndo(s.id, l.lessonId, l.skill)} className="text-xs font-semibold px-2.5 py-1 rounded-xl shrink-0" style={{ background: 'rgba(255,255,255,0.08)', color: '#8b8b9a' }}>
+                                    Undo
+                                  </button>
+                                ) : (
+                                  <button type="button" onClick={() => handleDismiss(s.id, l.lessonId, l.skill, 'almost')} className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 transition-colors" style={{ background: 'rgba(250,204,21,0.12)', color: '#facc15' }} title="Mark as checked in">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+                                  </button>
+                                )}
+                              </div>
+                            )
+                          })
                         })}
                       </div>
                     </div>
@@ -158,13 +174,28 @@ export default function ReportsScreen(props: ExtraProps) {
                       </div>
                       <div className="flex flex-col gap-1">
                         {cls.absent.map((s: ReportStudent) => {
-                          const titles = [...new Set(s.lessons.filter(l => l.status === 'absent').map(l => l.title))]
-                          return titles.map(title => (
-                            <div key={`${s.id}|${title}`} className="pl-4 py-1">
-                              <p className="text-sm font-semibold" style={{ color: '#f0f0f2' }}>{s.name}</p>
-                              <p className="text-xs mt-0.5" style={{ color: '#5a5a6a' }}>{title}</p>
-                            </div>
-                          ))
+                          const rows = s.lessons.filter(l => l.status === 'absent')
+                          return rows.map(l => {
+                            const key = dismissKey(s.id, l.lessonId, l.skill)
+                            const isPending = pendingDismiss.has(key)
+                            return (
+                              <div key={key} className={`flex items-center justify-between gap-2 pl-4 py-1 transition-opacity ${isPending ? 'opacity-40' : ''}`}>
+                                <div className="min-w-0">
+                                  <p className="text-sm font-semibold" style={{ color: '#f0f0f2' }}>{s.name}</p>
+                                  <p className="text-xs mt-0.5" style={{ color: '#5a5a6a' }}>{l.title}</p>
+                                </div>
+                                {isPending ? (
+                                  <button type="button" onClick={() => handleUndo(s.id, l.lessonId, l.skill)} className="text-xs font-semibold px-2.5 py-1 rounded-xl shrink-0" style={{ background: 'rgba(255,255,255,0.08)', color: '#8b8b9a' }}>
+                                    Undo
+                                  </button>
+                                ) : (
+                                  <button type="button" onClick={() => handleDismiss(s.id, l.lessonId, l.skill, 'absent')} className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 transition-colors" style={{ background: 'rgba(96,165,250,0.12)', color: '#60a5fa' }} title="Mark as caught up">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+                                  </button>
+                                )}
+                              </div>
+                            )
+                          })
                         })}
                       </div>
                     </div>

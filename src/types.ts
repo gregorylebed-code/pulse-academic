@@ -158,7 +158,7 @@ export interface ReportsScreenProps {
   reportData: ReportClass[]
   copyReport: () => void
   reportCopied: boolean
-  dismissCheckin: (studentId: string, lessonId: string, skill: string | null | undefined) => void
+  dismissCheckin: (studentId: string, lessonId: string, skill: string | null | undefined, fromStatus?: Status) => void
 }
 
 export interface HistoryScreenProps {
