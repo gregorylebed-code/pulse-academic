@@ -80,16 +80,6 @@ export default function ReportsScreen(props: ExtraProps) {
         <>
           <div className="flex flex-col gap-4 mb-5">
             {reportData.map((cls: ReportClass) => {
-              const struggledSkills = new Map<string, Set<string>>()
-              for (const s of cls.needsSupport) {
-                for (const lesson of s.lessons) {
-                  if (lesson.status !== 'needs-help') continue
-                  if (!lesson.skill?.trim()) continue
-                  const skill = lesson.skill.trim()
-                  if (!struggledSkills.has(skill)) struggledSkills.set(skill, new Set<string>())
-                  struggledSkills.get(skill)!.add(s.id)
-                }
-              }
 
               return (
                 <div key={cls.classId} className="rounded-2xl px-4 py-4" style={surface}>
@@ -123,20 +113,6 @@ export default function ReportsScreen(props: ExtraProps) {
                             </div>
                           )
                         })}
-                      </div>
-                    </div>
-                  )}
-
-                  {showSkills && struggledSkills.size > 0 && (
-                    <div className="mb-3 pl-4">
-                      <p className="text-xs font-bold uppercase tracking-wide mb-2" style={{ color: '#fbbf24' }}>Struggled with</p>
-                      <div className="flex flex-col gap-1">
-                        {[...struggledSkills.entries()].sort((a, b) => b[1].size - a[1].size || a[0].localeCompare(b[0])).map(([skill, studentIds]) => (
-                          <div key={skill} className="flex items-center justify-between gap-2">
-                            <p className="text-sm" style={{ color: '#f0f0f2' }}>{skill}</p>
-                            <p className="text-xs" style={{ color: '#5a5a6a' }}>{studentIds.size} student{studentIds.size !== 1 ? 's' : ''}</p>
-                          </div>
-                        ))}
                       </div>
                     </div>
                   )}
