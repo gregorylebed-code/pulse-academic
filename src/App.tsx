@@ -894,17 +894,21 @@ export default function App({ userId, isDemo = false, onSignOut, onNeedsSetup }:
 
   function confirmAllGotIt() {
     if (!activeLesson || isDemo) return
-    const unmarked = currentStudents.filter(s => (studentStatuses[s.id] ?? 'got-it') === 'got-it')
-    if (unmarked.length === 0) return
+    // Only flip non-absent students — absent (blue) stays blue
+    const toFlip = currentStudents.filter(s => {
+      const status = studentStatuses[s.id] ?? 'got-it'
+      return status !== 'got-it' && status !== 'absent'
+    })
+    if (toFlip.length === 0) return
     setStudentStatuses(cur => {
       const next = { ...cur }
-      unmarked.forEach(s => { next[s.id] = 'got-it' })
+      toFlip.forEach(s => { next[s.id] = 'got-it' })
       return next
     })
     supabase
       .from('checkins')
       .upsert(
-        unmarked.flatMap(s => buildCheckinRows(activeLesson.id, s.id, 'got-it', checkinNotes[s.id] ?? null)),
+        toFlip.flatMap(s => buildCheckinRows(activeLesson.id, s.id, 'got-it', checkinNotes[s.id] ?? null)),
         { onConflict: 'lesson_id,student_id,skill' }
       )
       .then(() => setHistoryVersion(v => v + 1))
@@ -919,6 +923,18 @@ export default function App({ userId, isDemo = false, onSignOut, onNeedsSetup }:
     const row = historyData.find(r => r.student_id === studentId && r.lesson_id === lessonId && (r.skill ?? null) === (skill ?? null))
     supabase.from('checkins').upsert(
       [{ user_id: userId, lesson_id: lessonId, student_id: studentId, status: 'got-it' as Status, note: row?.note ?? null, skill: skill ?? null }],
+      { onConflict: 'lesson_id,student_id,skill' }
+    ).then()
+  }
+
+  function clearLesson(lessonId: string) {
+    const rows = historyData.filter(r => r.lesson_id === lessonId && r.status !== 'absent' && r.status !== 'got-it')
+    if (rows.length === 0) return
+    setHistoryData(cur => cur.map(r =>
+      r.lesson_id === lessonId && r.status !== 'absent' ? { ...r, status: 'got-it' } : r
+    ))
+    supabase.from('checkins').upsert(
+      rows.map(r => ({ user_id: userId, lesson_id: lessonId, student_id: r.student_id, status: 'got-it' as Status, note: r.note ?? null, skill: r.skill ?? null })),
       { onConflict: 'lesson_id,student_id,skill' }
     ).then()
   }
@@ -1262,7 +1278,12 @@ async function handleSuggestExitTicket() {
   // ── Render ────────────────────────────────────────────────────────────────
 
   if (dataLoading) {
-    return <div className="min-h-screen" style={{ background: '#0d0d0f' }} />
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center gap-3" style={{ background: '#0d0d0f' }}>
+        <svg className="animate-spin h-8 w-8 text-teal-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
+        <p className="text-sm" style={{ color: '#8b8b9a' }}>Loading…</p>
+      </div>
+    )
   }
 
   const screenProps = {
@@ -1279,7 +1300,7 @@ async function handleSuggestExitTicket() {
     historyLoading, selectedStudentId, historyStudents, studentHistoryRows, STATUS_PILL, STATUS_LABEL,
     filteredHistory, selectedLesson, lessonDetail, lessonGroups,
     reportClassId, setReportClassId, reportRange, setReportRange, reportCustomStart, setReportCustomStart, reportCustomEnd,
-    setReportCustomEnd, reportData, copyReport, reportCopied, dismissCheckin,
+    setReportCustomEnd, reportData, copyReport, reportCopied, dismissCheckin, clearLesson,
     rosterAddingClass, setRosterAddingClass, rosterNewClassName, setRosterNewClassName, rosterAddClass, rosterNewClassSubject,
     setRosterNewClassSubject, SUBJECTS, rosterSaving, studentsByClass, rosterRenaming, rosterRenameValue, setRosterRenameValue, rosterRenameClass,
     setRosterRenaming, rosterConfirmRemove, rosterRemoveStudent, setRosterConfirmRemove, rosterNewStudentName, setRosterNewStudentName,

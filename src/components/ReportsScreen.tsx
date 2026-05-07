@@ -9,7 +9,7 @@ interface ExtraProps extends ReportsScreenProps {
 export default function ReportsScreen(props: ExtraProps) {
   const {
     classes, classLabel, reportClassId, setReportClassId, reportRange, setReportRange, reportCustomStart, setReportCustomStart, reportCustomEnd,
-    setReportCustomEnd, reportData, copyReport, reportCopied, showSkills, dismissCheckin
+    setReportCustomEnd, reportData, copyReport, reportCopied, showSkills, dismissCheckin, clearLesson
   } = props
 
   // key: `${studentId}|${lessonId}|${skill ?? ''}`
@@ -127,6 +127,24 @@ export default function ReportsScreen(props: ExtraProps) {
                           })
                         })}
                       </div>
+                      {(() => {
+                        const lessonCounts = new Map<string, { title: string; count: number }>()
+                        cls.needsSupport.forEach(s => s.lessons.filter(l => l.status === 'needs-help').forEach(l => {
+                          const e = lessonCounts.get(l.lessonId)
+                          lessonCounts.set(l.lessonId, { title: l.title, count: (e?.count ?? 0) + 1 })
+                        }))
+                        const multi = [...lessonCounts.entries()].filter(([, v]) => v.count >= 2)
+                        if (multi.length === 0) return null
+                        return (
+                          <div className="flex flex-wrap gap-2 mt-2 pl-4">
+                            {multi.map(([lessonId, { title }]) => (
+                              <button key={lessonId} type="button" onClick={() => clearLesson(lessonId)} className="text-xs px-2.5 py-1 rounded-xl" style={{ background: 'rgba(52,211,153,0.08)', color: '#34d399' }}>
+                                Clear all · {title}
+                              </button>
+                            ))}
+                          </div>
+                        )
+                      })()}
                     </div>
                   )}
 
@@ -163,6 +181,24 @@ export default function ReportsScreen(props: ExtraProps) {
                           })
                         })}
                       </div>
+                      {(() => {
+                        const lessonCounts = new Map<string, { title: string; count: number }>()
+                        cls.checkIn.forEach(s => s.lessons.filter(l => l.status === 'almost').forEach(l => {
+                          const e = lessonCounts.get(l.lessonId)
+                          lessonCounts.set(l.lessonId, { title: l.title, count: (e?.count ?? 0) + 1 })
+                        }))
+                        const multi = [...lessonCounts.entries()].filter(([, v]) => v.count >= 2)
+                        if (multi.length === 0) return null
+                        return (
+                          <div className="flex flex-wrap gap-2 mt-2 pl-4">
+                            {multi.map(([lessonId, { title }]) => (
+                              <button key={lessonId} type="button" onClick={() => clearLesson(lessonId)} className="text-xs px-2.5 py-1 rounded-xl" style={{ background: 'rgba(250,204,21,0.08)', color: '#facc15' }}>
+                                Clear all · {title}
+                              </button>
+                            ))}
+                          </div>
+                        )
+                      })()}
                     </div>
                   )}
 
