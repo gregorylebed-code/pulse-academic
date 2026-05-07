@@ -425,8 +425,17 @@ export default function App({ userId, isDemo = false, onSignOut }: Props) {
         return true
       })
 
+      // If a student has any 'absent' row for a lesson, suppress needs-help/almost rows
+      // for that same lesson (orphaned skill rows from before absent was tapped).
+      const absentKeys = new Set(
+        classRows.filter(r => r.status === 'absent').map(r => `${r.student_id}|${r.lesson_id}`)
+      )
+      const deduped = classRows.filter(r =>
+        r.status === 'absent' || !absentKeys.has(`${r.student_id}|${r.lesson_id}`)
+      )
+
       const studentMap = new Map<string, ReportStudent>()
-      for (const row of classRows) {
+      for (const row of deduped) {
         if (!studentMap.has(row.student_id)) {
           const s = students.find(s => s.id === row.student_id)
           if (!s) continue
@@ -824,7 +833,8 @@ export default function App({ userId, isDemo = false, onSignOut }: Props) {
       .from('checkins')
       .select('student_id, status, note')
       .eq('lesson_id', lessonId)
-    const STATUS_SEVERITY: Record<string, number> = { 'needs-help': 3, 'almost': 2, 'absent': 1, 'got-it': 0 }
+    // absent wins over needs-help: if any skill row is absent, the student was marked absent last
+    const STATUS_SEVERITY: Record<string, number> = { 'absent': 4, 'needs-help': 3, 'almost': 2, 'got-it': 0 }
     const map: Record<string, Status> = {}
     const noteMap: Record<string, string> = {}
     for (const c of checkins ?? []) {
