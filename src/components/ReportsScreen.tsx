@@ -85,7 +85,7 @@ export default function ReportsScreen(props: ExtraProps) {
                       </div>
                       <div className="flex flex-col gap-2">
                         {cls.needsSupport.map((s: ReportStudent) => {
-                          const topics = [...new Set(s.lessons.filter((l) => l.status === 'needs-help').map((l) => l.title))]
+                          const topics = [...new Set(s.lessons.filter((l) => l.status === 'needs-help').map((l) => (showSkills && l.skill?.trim()) ? l.skill.trim() : l.title))]
                           return (
                             <div key={s.id} className="pl-4">
                               <p className="text-sm font-semibold" style={{ color: '#f0f0f2' }}>{s.name}</p>

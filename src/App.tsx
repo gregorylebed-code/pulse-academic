@@ -239,6 +239,7 @@ export default function App({ userId, isDemo = false, onSignOut }: Props) {
   const [historyClassId, setHistoryClassId] = useState<string>('')
   const [historyData, setHistoryData] = useState<HistoryRow[]>([])
   const [historyLoading, setHistoryLoading] = useState(false)
+  const [historyVersion, setHistoryVersion] = useState(0)
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null)
   const [selectedLesson, setSelectedLesson] = useState<{ lesson_id: string; lesson_title: string; date: string } | null>(null)
 
@@ -599,6 +600,7 @@ export default function App({ userId, isDemo = false, onSignOut }: Props) {
         { onConflict: 'lesson_id,student_id,skill' }
       )
     closeNoteModal()
+    setHistoryVersion(v => v + 1)
   }
 
   function onCirclePointerDown(studentId: string, studentName: string) {
@@ -749,7 +751,7 @@ export default function App({ userId, isDemo = false, onSignOut }: Props) {
       setHistoryLoading(false)
     }
     loadHistory()
-  }, [screen, userId, isDemo])
+  }, [screen, userId, isDemo, historyVersion])
 
   // ── Load plan when navigating to plan screen or switching week view ───────
 

@@ -22,3 +22,14 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Supabase temp
+supabase/.temp/
+
+# Video files
+*.mp4
+*.mov
+
+# Codex-generated scripts dropped in wrong folder
+VIDEO_SHORT_CAPTION_WORKFLOW.md
+caption_video.py
