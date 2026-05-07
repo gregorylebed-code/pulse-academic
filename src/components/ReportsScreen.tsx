@@ -1,3 +1,4 @@
+import { useState, useRef } from 'react'
 import type { ReportsScreenProps, AppClass, ReportClass, ReportStudent } from '../types'
 
 interface ExtraProps extends ReportsScreenProps {
@@ -8,8 +9,25 @@ interface ExtraProps extends ReportsScreenProps {
 export default function ReportsScreen(props: ExtraProps) {
   const {
     classes, classLabel, reportClassId, setReportClassId, reportRange, setReportRange, reportCustomStart, setReportCustomStart, reportCustomEnd,
-    setReportCustomEnd, reportData, copyReport, reportCopied, showSkills
+    setReportCustomEnd, reportData, copyReport, reportCopied, showSkills, dismissStudent
   } = props
+
+  const [pendingDismiss, setPendingDismiss] = useState<{ studentId: string; classId: string; name: string } | null>(null)
+  const dismissTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  function handleDismiss(studentId: string, classId: string, name: string) {
+    if (dismissTimerRef.current) clearTimeout(dismissTimerRef.current)
+    setPendingDismiss({ studentId, classId, name })
+    dismissTimerRef.current = setTimeout(() => {
+      dismissStudent(studentId, classId)
+      setPendingDismiss(null)
+    }, 3000)
+  }
+
+  function handleUndo() {
+    if (dismissTimerRef.current) clearTimeout(dismissTimerRef.current)
+    setPendingDismiss(null)
+  }
 
   const surface = { background: '#161618', border: '1px solid rgba(255,255,255,0.07)' }
   const inputStyle = { background: '#1e1e22', borderColor: 'rgba(255,255,255,0.1)', color: '#f0f0f2' }
@@ -86,10 +104,22 @@ export default function ReportsScreen(props: ExtraProps) {
                       <div className="flex flex-col gap-2">
                         {cls.needsSupport.map((s: ReportStudent) => {
                           const topics = [...new Set(s.lessons.filter((l) => l.status === 'needs-help').map((l) => (showSkills && l.skill?.trim()) ? l.skill.trim() : l.title))]
+                          const isPending = pendingDismiss?.studentId === s.id && pendingDismiss?.classId === cls.classId
                           return (
-                            <div key={s.id} className="pl-4">
-                              <p className="text-sm font-semibold" style={{ color: '#f0f0f2' }}>{s.name}</p>
-                              <p className="text-xs mt-0.5" style={{ color: '#5a5a6a' }}>{(topics as string[]).join(' · ')}</p>
+                            <div key={s.id} className={`flex items-center justify-between gap-2 pl-4 transition-opacity ${isPending ? 'opacity-40' : ''}`}>
+                              <div className="min-w-0">
+                                <p className="text-sm font-semibold" style={{ color: '#f0f0f2' }}>{s.name}</p>
+                                <p className="text-xs mt-0.5" style={{ color: '#5a5a6a' }}>{(topics as string[]).join(' · ')}</p>
+                              </div>
+                              {isPending ? (
+                                <button type="button" onClick={handleUndo} className="text-xs font-semibold px-2.5 py-1 rounded-xl shrink-0" style={{ background: 'rgba(255,255,255,0.08)', color: '#8b8b9a' }}>
+                                  Undo
+                                </button>
+                              ) : (
+                                <button type="button" onClick={() => handleDismiss(s.id, cls.classId, s.name)} className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 transition-colors" style={{ background: 'rgba(52,211,153,0.12)', color: '#34d399' }} title="Mark as remediated">
+                                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+                                </button>
+                              )}
                             </div>
                           )
                         })}

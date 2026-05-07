@@ -891,6 +891,25 @@ export default function App({ userId, isDemo = false, onSignOut }: Props) {
       .then(() => setHistoryVersion(v => v + 1))
   }
 
+  function dismissStudent(studentId: string, classId: string) {
+    const rows = historyData.filter(r => r.student_id === studentId && r.class_id === classId && r.status === 'needs-help')
+    if (rows.length === 0) return
+    setHistoryData(cur => cur.map(r =>
+      r.student_id === studentId && r.class_id === classId && r.status === 'needs-help'
+        ? { ...r, status: 'got-it' }
+        : r
+    ))
+    const upsertRows = rows.map(r => ({
+      user_id: userId,
+      lesson_id: r.lesson_id,
+      student_id: r.student_id,
+      status: 'got-it' as Status,
+      note: r.note ?? null,
+      skill: r.skill ?? null,
+    }))
+    supabase.from('checkins').upsert(upsertRows, { onConflict: 'lesson_id,student_id,skill' }).then()
+  }
+
   // ── Exit tickets ──────────────────────────────────────────────────────────
 
 async function handleSuggestExitTicket() {
@@ -1252,7 +1271,7 @@ async function handleSuggestExitTicket() {
     historyLoading, selectedStudentId, historyStudents, studentHistoryRows, STATUS_PILL, STATUS_LABEL,
     filteredHistory, selectedLesson, lessonDetail, lessonGroups,
     reportClassId, setReportClassId, reportRange, setReportRange, reportCustomStart, setReportCustomStart, reportCustomEnd,
-    setReportCustomEnd, reportData, copyReport, reportCopied,
+    setReportCustomEnd, reportData, copyReport, reportCopied, dismissStudent,
     rosterAddingClass, setRosterAddingClass, rosterNewClassName, setRosterNewClassName, rosterAddClass, rosterNewClassSubject,
     setRosterNewClassSubject, SUBJECTS, rosterSaving, studentsByClass, rosterRenaming, rosterRenameValue, setRosterRenameValue, rosterRenameClass,
     setRosterRenaming, rosterConfirmRemove, rosterRemoveStudent, setRosterConfirmRemove, rosterNewStudentName, setRosterNewStudentName,
