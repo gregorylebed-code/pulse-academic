@@ -679,14 +679,20 @@ export default function App({ userId, isDemo = false, onSignOut, onNeedsSetup }:
         return
       }
 
-      setClasses(loaded)
-      setSelectedClassId(loaded[0]?.id ?? '')
-      setHistoryClassId(loaded[0]?.id ?? '')
+      const firstClassId = loaded[0]?.id ?? ''
 
-      const { data: scRows } = await supabase
-        .from('student_classes')
-        .select('class_id, students(id, name)')
-        .in('class_id', loaded.map(c => c.id))
+      const [{ data: scRows }, { data: wpData }] = await Promise.all([
+        supabase
+          .from('student_classes')
+          .select('class_id, students(id, name)')
+          .in('class_id', loaded.map(c => c.id)),
+        supabase
+          .from('week_plans')
+          .select('id, week_start, plan_json, tracked_subjects')
+          .eq('class_id', firstClassId)
+          .eq('week_start', weekStart)
+          .maybeSingle(),
+      ])
 
       const byClass: Record<string, AppStudent[]> = {}
       for (const cls of loaded) byClass[cls.id] = []
@@ -694,16 +700,28 @@ export default function App({ userId, isDemo = false, onSignOut, onNeedsSetup }:
         const s = row.students as unknown as AppStudent
         if (s && byClass[row.class_id]) byClass[row.class_id].push(s)
       }
+
+      if (wpData) {
+        const tracked = wpData.tracked_subjects ?? []
+        const plan = { weekStart: wpData.week_start, schedule: wpData.plan_json, trackedSubjects: tracked, planId: wpData.id }
+        setSavedPlan(plan)
+        setCurrentWeekPlan(plan)
+        if (tracked.length > 0) setActiveSubject(tracked[0])
+      }
+
+      setClasses(loaded)
+      setSelectedClassId(firstClassId)
+      setHistoryClassId(firstClassId)
       setStudentsByClass(byClass)
       setDataLoading(false)
     }
     load()
-  }, [userId, isDemo])
+  }, [userId, isDemo, weekStart])
 
-  // ── Load week plan on mount ──────────────────────────────────────────────
+  // ── Reload week plan when user switches class or week ────────────────────
 
   useEffect(() => {
-    if (isDemo || classes.length === 0) return
+    if (isDemo || !selectedClassId) return
     supabase
       .from('week_plans')
       .select('id, week_start, plan_json, tracked_subjects')
@@ -717,9 +735,12 @@ export default function App({ userId, isDemo = false, onSignOut, onNeedsSetup }:
           setSavedPlan(plan)
           setCurrentWeekPlan(plan)
           if (tracked.length > 0) setActiveSubject(tracked[0])
+        } else {
+          setSavedPlan(null)
+          setCurrentWeekPlan(null)
         }
       })
-  }, [userId, isDemo, weekStart, classes.length, selectedClassId])
+  }, [isDemo, weekStart, selectedClassId])
 
   // ── Load history when switching to history screen ────────────────────────
 
@@ -1209,7 +1230,9 @@ async function handleSuggestExitTicket() {
     setActiveSubject(subject)
     setStudentStatuses({})
     setExitTickets([]); setActiveExitTicket(null); setShowExitTickets(false)
-    const planTitle = savedPlan?.schedule[today]?.[subject]?.title
+    const todaySchedule = savedPlan?.schedule[today]
+    const matchKey = todaySchedule ? Object.keys(todaySchedule).find(k => k.toLowerCase() === subject.toLowerCase()) : undefined
+    const planTitle = matchKey ? todaySchedule![matchKey].title : undefined
     if (planTitle) {
       setLessonInput(planTitle)
       startLessonByTitle(planTitle)

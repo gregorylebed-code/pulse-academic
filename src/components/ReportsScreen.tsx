@@ -16,6 +16,26 @@ export default function ReportsScreen(props: ExtraProps) {
   const [pendingDismiss, setPendingDismiss] = useState<Set<string>>(new Set())
   const timerRefs = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map())
 
+  // pending clear-all: lessonId → timeout
+  const [pendingClear, setPendingClear] = useState<Set<string>>(new Set())
+  const clearTimerRefs = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map())
+
+  function handleClearLesson(lessonId: string) {
+    setPendingClear(cur => new Set([...cur, lessonId]))
+    const t = setTimeout(() => {
+      clearLesson(lessonId)
+      setPendingClear(cur => { const next = new Set(cur); next.delete(lessonId); return next })
+      clearTimerRefs.current.delete(lessonId)
+    }, 3000)
+    clearTimerRefs.current.set(lessonId, t)
+  }
+
+  function handleUndoClear(lessonId: string) {
+    const t = clearTimerRefs.current.get(lessonId)
+    if (t) { clearTimeout(t); clearTimerRefs.current.delete(lessonId) }
+    setPendingClear(cur => { const next = new Set(cur); next.delete(lessonId); return next })
+  }
+
   function dismissKey(studentId: string, lessonId: string, skill: string | null | undefined) {
     return `${studentId}|${lessonId}|${skill ?? ''}`
   }
@@ -138,9 +158,15 @@ export default function ReportsScreen(props: ExtraProps) {
                         return (
                           <div className="flex flex-wrap gap-2 mt-2 pl-4">
                             {multi.map(([lessonId, { title }]) => (
-                              <button key={lessonId} type="button" onClick={() => clearLesson(lessonId)} className="text-xs px-2.5 py-1 rounded-xl" style={{ background: 'rgba(52,211,153,0.08)', color: '#34d399' }}>
-                                Clear all · {title}
-                              </button>
+                              pendingClear.has(lessonId) ? (
+                                <button key={lessonId} type="button" onClick={() => handleUndoClear(lessonId)} className="text-xs px-2.5 py-1 rounded-xl font-semibold" style={{ background: 'rgba(255,255,255,0.08)', color: '#8b8b9a' }}>
+                                  Undo · {title}
+                                </button>
+                              ) : (
+                                <button key={lessonId} type="button" onClick={() => handleClearLesson(lessonId)} className="text-xs px-2.5 py-1 rounded-xl" style={{ background: 'rgba(52,211,153,0.08)', color: '#34d399' }}>
+                                  Clear all · {title}
+                                </button>
+                              )
                             ))}
                           </div>
                         )
@@ -192,9 +218,15 @@ export default function ReportsScreen(props: ExtraProps) {
                         return (
                           <div className="flex flex-wrap gap-2 mt-2 pl-4">
                             {multi.map(([lessonId, { title }]) => (
-                              <button key={lessonId} type="button" onClick={() => clearLesson(lessonId)} className="text-xs px-2.5 py-1 rounded-xl" style={{ background: 'rgba(250,204,21,0.08)', color: '#facc15' }}>
-                                Clear all · {title}
-                              </button>
+                              pendingClear.has(lessonId) ? (
+                                <button key={lessonId} type="button" onClick={() => handleUndoClear(lessonId)} className="text-xs px-2.5 py-1 rounded-xl font-semibold" style={{ background: 'rgba(255,255,255,0.08)', color: '#8b8b9a' }}>
+                                  Undo · {title}
+                                </button>
+                              ) : (
+                                <button key={lessonId} type="button" onClick={() => handleClearLesson(lessonId)} className="text-xs px-2.5 py-1 rounded-xl" style={{ background: 'rgba(250,204,21,0.08)', color: '#facc15' }}>
+                                  Clear all · {title}
+                                </button>
+                              )
                             ))}
                           </div>
                         )

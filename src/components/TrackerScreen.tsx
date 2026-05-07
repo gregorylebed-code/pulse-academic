@@ -41,7 +41,11 @@ export default function TrackerScreen(props: TrackerScreenProps) {
           const planLessons = activeSubject && savedPlan
             ? Object.entries(savedPlan.schedule)
                 .sort(([a], [b]) => a.localeCompare(b))
-                .flatMap(([date, day]: [string, Record<string, DayLesson>]) => day[activeSubject] ? [{ date, title: day[activeSubject].title }] : [])
+                .flatMap(([date, day]: [string, Record<string, DayLesson>]) => {
+                  const activeSubjectLower = activeSubject.toLowerCase()
+                  const matchKey = Object.keys(day).find(k => k.toLowerCase() === activeSubjectLower)
+                  return matchKey ? [{ date, title: day[matchKey].title }] : []
+                })
             : []
           return planLessons.length > 0 ? (
             <div className="w-full max-w-2xl mx-auto">
