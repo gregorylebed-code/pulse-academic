@@ -445,7 +445,7 @@ export default function App({ userId, isDemo = false, onSignOut }: Props) {
 
       const needsSupport = all.filter(s => s.lessons.some(l => l.status === 'needs-help')).sort((a, b) => a.name.localeCompare(b.name))
       const checkIn = all.filter(s => !s.lessons.some(l => l.status === 'needs-help') && s.lessons.some(l => l.status === 'almost')).sort((a, b) => a.name.localeCompare(b.name))
-      const absent = all.filter(s => s.lessons.some(l => l.status === 'absent')).sort((a, b) => a.name.localeCompare(b.name))
+      const absent = all.filter(s => !s.lessons.some(l => l.status === 'needs-help') && !s.lessons.some(l => l.status === 'almost') && s.lessons.some(l => l.status === 'absent')).sort((a, b) => a.name.localeCompare(b.name))
 
       return { classId: cls.id, className: cls.name, needsSupport, checkIn, absent }
     }).filter(c => c.needsSupport.length > 0 || c.checkIn.length > 0 || c.absent.length > 0)
@@ -824,10 +824,14 @@ export default function App({ userId, isDemo = false, onSignOut }: Props) {
       .from('checkins')
       .select('student_id, status, note')
       .eq('lesson_id', lessonId)
+    const STATUS_SEVERITY: Record<string, number> = { 'needs-help': 3, 'almost': 2, 'absent': 1, 'got-it': 0 }
     const map: Record<string, Status> = {}
     const noteMap: Record<string, string> = {}
     for (const c of checkins ?? []) {
-      map[c.student_id] = c.status as Status
+      const existing = map[c.student_id]
+      if (!existing || (STATUS_SEVERITY[c.status] ?? 0) > (STATUS_SEVERITY[existing] ?? 0)) {
+        map[c.student_id] = c.status as Status
+      }
       if (c.note) noteMap[c.student_id] = c.note
     }
     setStudentStatuses(map)
