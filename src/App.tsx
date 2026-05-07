@@ -888,7 +888,7 @@ export default function App({ userId, isDemo = false, onSignOut }: Props) {
         unmarked.flatMap(s => buildCheckinRows(activeLesson.id, s.id, 'got-it', checkinNotes[s.id] ?? null)),
         { onConflict: 'lesson_id,student_id,skill' }
       )
-      .then()
+      .then(() => setHistoryVersion(v => v + 1))
   }
 
   // ── Exit tickets ──────────────────────────────────────────────────────────

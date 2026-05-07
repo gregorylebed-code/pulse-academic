@@ -1,3 +1,4 @@
+import { useState, useCallback } from 'react'
 import type { TrackerScreenProps, AppStudent } from '../types'
 import type { DemoLesson } from '../lib/demo'
 import type { DayLesson } from '../lib/groq'
@@ -9,6 +10,13 @@ export default function TrackerScreen(props: TrackerScreenProps) {
     showExitTickets, activeExitTicket, exitTickets, currentStudents, loading, studentStatuses, formatStudentName, nameFormat, STATUS_INITIAL_BG, STATUS_RING, STATUS_CARD, tap, confirmAllGotIt,
     openProfile, checkinNotes, atRiskStudentIds, onCirclePointerDown, onCirclePointerUp, onCirclePointerCancel, showSkills,
   } = props
+
+  const [savedFlash, setSavedFlash] = useState(false)
+  const handleConfirmAllGotIt = useCallback(() => {
+    confirmAllGotIt()
+    setSavedFlash(true)
+    setTimeout(() => setSavedFlash(false), 2000)
+  }, [confirmAllGotIt])
 
   return (
     <>
@@ -148,8 +156,8 @@ export default function TrackerScreen(props: TrackerScreenProps) {
                       <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-blue-400" /><span className="text-blue-400">{absent} Absent</span></span>
                     </div>
                     {!isDemo && gotIt > 0 && (
-                      <button type="button" onClick={confirmAllGotIt} className="text-xs font-semibold px-3 py-1.5 bg-emerald-900/40 text-emerald-400 rounded-xl hover:bg-emerald-900/60 transition-colors shrink-0 ml-2">
-                        ✓ Save All Got It
+                      <button type="button" onClick={handleConfirmAllGotIt} className={`text-xs font-semibold px-3 py-1.5 rounded-xl transition-colors shrink-0 ml-2 ${savedFlash ? 'bg-emerald-700/60 text-emerald-300' : 'bg-emerald-900/40 text-emerald-400 hover:bg-emerald-900/60'}`}>
+                        {savedFlash ? '✓ Saved!' : '✓ Save All Got It'}
                       </button>
                     )}
                   </div>
