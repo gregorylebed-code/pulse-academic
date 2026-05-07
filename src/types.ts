@@ -50,7 +50,7 @@ export type SavedPlan = {
 export type ReportStudent = {
   id: string
   name: string
-  lessons: { title: string; date: string; status: 'needs-help' | 'almost' | 'absent'; skill?: string | null }[]
+  lessons: { lessonId: string; title: string; date: string; status: 'needs-help' | 'almost' | 'absent'; skill?: string | null }[]
   notes: { date: string; lessonTitle: string; text: string }[]
 }
 
@@ -158,7 +158,7 @@ export interface ReportsScreenProps {
   reportData: ReportClass[]
   copyReport: () => void
   reportCopied: boolean
-  dismissStudent: (studentId: string, classId: string) => void
+  dismissCheckin: (studentId: string, lessonId: string, skill: string | null | undefined) => void
 }
 
 export interface HistoryScreenProps {

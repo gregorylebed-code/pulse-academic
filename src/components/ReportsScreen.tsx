@@ -9,24 +9,33 @@ interface ExtraProps extends ReportsScreenProps {
 export default function ReportsScreen(props: ExtraProps) {
   const {
     classes, classLabel, reportClassId, setReportClassId, reportRange, setReportRange, reportCustomStart, setReportCustomStart, reportCustomEnd,
-    setReportCustomEnd, reportData, copyReport, reportCopied, showSkills, dismissStudent
+    setReportCustomEnd, reportData, copyReport, reportCopied, showSkills, dismissCheckin
   } = props
 
-  const [pendingDismiss, setPendingDismiss] = useState<{ studentId: string; classId: string; name: string } | null>(null)
-  const dismissTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // key: `${studentId}|${lessonId}|${skill ?? ''}`
+  const [pendingDismiss, setPendingDismiss] = useState<Set<string>>(new Set())
+  const timerRefs = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map())
 
-  function handleDismiss(studentId: string, classId: string, name: string) {
-    if (dismissTimerRef.current) clearTimeout(dismissTimerRef.current)
-    setPendingDismiss({ studentId, classId, name })
-    dismissTimerRef.current = setTimeout(() => {
-      dismissStudent(studentId, classId)
-      setPendingDismiss(null)
-    }, 3000)
+  function dismissKey(studentId: string, lessonId: string, skill: string | null | undefined) {
+    return `${studentId}|${lessonId}|${skill ?? ''}`
   }
 
-  function handleUndo() {
-    if (dismissTimerRef.current) clearTimeout(dismissTimerRef.current)
-    setPendingDismiss(null)
+  function handleDismiss(studentId: string, lessonId: string, skill: string | null | undefined) {
+    const key = dismissKey(studentId, lessonId, skill)
+    setPendingDismiss(cur => new Set([...cur, key]))
+    const t = setTimeout(() => {
+      dismissCheckin(studentId, lessonId, skill)
+      setPendingDismiss(cur => { const next = new Set(cur); next.delete(key); return next })
+      timerRefs.current.delete(key)
+    }, 3000)
+    timerRefs.current.set(key, t)
+  }
+
+  function handleUndo(studentId: string, lessonId: string, skill: string | null | undefined) {
+    const key = dismissKey(studentId, lessonId, skill)
+    const t = timerRefs.current.get(key)
+    if (t) { clearTimeout(t); timerRefs.current.delete(key) }
+    setPendingDismiss(cur => { const next = new Set(cur); next.delete(key); return next })
   }
 
   const surface = { background: '#161618', border: '1px solid rgba(255,255,255,0.07)' }
@@ -91,27 +100,31 @@ export default function ReportsScreen(props: ExtraProps) {
                         <span className="w-2 h-2 rounded-full bg-red-400 shrink-0" />
                         <p className="text-xs font-bold text-red-400 uppercase tracking-wide">Needs Support</p>
                       </div>
-                      <div className="flex flex-col gap-2">
+                      <div className="flex flex-col gap-1">
                         {cls.needsSupport.map((s: ReportStudent) => {
-                          const topics = [...new Set(s.lessons.filter((l) => l.status === 'needs-help').map((l) => (showSkills && l.skill?.trim()) ? l.skill.trim() : l.title))]
-                          const isPending = pendingDismiss?.studentId === s.id && pendingDismiss?.classId === cls.classId
-                          return (
-                            <div key={s.id} className={`flex items-center justify-between gap-2 pl-4 transition-opacity ${isPending ? 'opacity-40' : ''}`}>
-                              <div className="min-w-0">
-                                <p className="text-sm font-semibold" style={{ color: '#f0f0f2' }}>{s.name}</p>
-                                <p className="text-xs mt-0.5" style={{ color: '#5a5a6a' }}>{(topics as string[]).join(' · ')}</p>
+                          const rows = s.lessons.filter(l => l.status === 'needs-help')
+                          return rows.map(l => {
+                            const label = (showSkills && l.skill?.trim()) ? l.skill.trim() : l.title
+                            const key = dismissKey(s.id, l.lessonId, l.skill)
+                            const isPending = pendingDismiss.has(key)
+                            return (
+                              <div key={key} className={`flex items-center justify-between gap-2 pl-4 py-1 transition-opacity ${isPending ? 'opacity-40' : ''}`}>
+                                <div className="min-w-0">
+                                  <p className="text-sm font-semibold" style={{ color: '#f0f0f2' }}>{s.name}</p>
+                                  <p className="text-xs mt-0.5" style={{ color: '#5a5a6a' }}>{label}</p>
+                                </div>
+                                {isPending ? (
+                                  <button type="button" onClick={() => handleUndo(s.id, l.lessonId, l.skill)} className="text-xs font-semibold px-2.5 py-1 rounded-xl shrink-0" style={{ background: 'rgba(255,255,255,0.08)', color: '#8b8b9a' }}>
+                                    Undo
+                                  </button>
+                                ) : (
+                                  <button type="button" onClick={() => handleDismiss(s.id, l.lessonId, l.skill)} className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 transition-colors" style={{ background: 'rgba(52,211,153,0.12)', color: '#34d399' }} title="Mark as remediated">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+                                  </button>
+                                )}
                               </div>
-                              {isPending ? (
-                                <button type="button" onClick={handleUndo} className="text-xs font-semibold px-2.5 py-1 rounded-xl shrink-0" style={{ background: 'rgba(255,255,255,0.08)', color: '#8b8b9a' }}>
-                                  Undo
-                                </button>
-                              ) : (
-                                <button type="button" onClick={() => handleDismiss(s.id, cls.classId, s.name)} className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 transition-colors" style={{ background: 'rgba(52,211,153,0.12)', color: '#34d399' }} title="Mark as remediated">
-                                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
-                                </button>
-                              )}
-                            </div>
-                          )
+                            )
+                          })
                         })}
                       </div>
                     </div>
@@ -123,15 +136,15 @@ export default function ReportsScreen(props: ExtraProps) {
                         <span className="w-2 h-2 rounded-full bg-yellow-400 shrink-0" />
                         <p className="text-xs font-bold text-yellow-400 uppercase tracking-wide">Worth a Check-In</p>
                       </div>
-                      <div className="flex flex-col gap-2">
+                      <div className="flex flex-col gap-1">
                         {cls.checkIn.map((s: ReportStudent) => {
-                          const topics = [...new Set(s.lessons.map((l) => l.title))]
-                          return (
-                            <div key={s.id} className="pl-4">
+                          const topics = [...new Set(s.lessons.filter(l => l.status === 'almost').map(l => (showSkills && l.skill?.trim()) ? l.skill.trim() : l.title))]
+                          return topics.map(topic => (
+                            <div key={`${s.id}|${topic}`} className="pl-4 py-1">
                               <p className="text-sm font-semibold" style={{ color: '#f0f0f2' }}>{s.name}</p>
-                              <p className="text-xs mt-0.5" style={{ color: '#5a5a6a' }}>{(topics as string[]).join(' · ')}</p>
+                              <p className="text-xs mt-0.5" style={{ color: '#5a5a6a' }}>{topic}</p>
                             </div>
-                          )
+                          ))
                         })}
                       </div>
                     </div>
@@ -141,17 +154,17 @@ export default function ReportsScreen(props: ExtraProps) {
                     <div>
                       <div className="flex items-center gap-2 mb-2">
                         <span className="w-2 h-2 rounded-full bg-blue-400 shrink-0" />
-                        <p className="text-xs font-bold text-blue-400 uppercase tracking-wide">Missed Lesson — Needs Catch-Up</p>
+                        <p className="text-xs font-bold text-blue-400 uppercase tracking-wide">Missed Lesson</p>
                       </div>
-                      <div className="flex flex-col gap-2">
+                      <div className="flex flex-col gap-1">
                         {cls.absent.map((s: ReportStudent) => {
-                          const lessons = [...new Set(s.lessons.map((l) => l.title))]
-                          return (
-                            <div key={s.id} className="pl-4">
+                          const titles = [...new Set(s.lessons.filter(l => l.status === 'absent').map(l => l.title))]
+                          return titles.map(title => (
+                            <div key={`${s.id}|${title}`} className="pl-4 py-1">
                               <p className="text-sm font-semibold" style={{ color: '#f0f0f2' }}>{s.name}</p>
-                              <p className="text-xs mt-0.5" style={{ color: '#5a5a6a' }}>{(lessons as string[]).join(' · ')}</p>
+                              <p className="text-xs mt-0.5" style={{ color: '#5a5a6a' }}>{title}</p>
                             </div>
-                          )
+                          ))
                         })}
                       </div>
                     </div>

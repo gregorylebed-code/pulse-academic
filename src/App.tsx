@@ -433,7 +433,7 @@ export default function App({ userId, isDemo = false, onSignOut }: Props) {
           studentMap.set(row.student_id, { id: row.student_id, name: row.student_name, lessons: [], notes: [] })
         }
         const student = studentMap.get(row.student_id)!
-        student.lessons.push({ title: row.lesson_title, date: row.date, status: row.status as 'needs-help' | 'almost' | 'absent', skill: row.skill ?? null })
+        student.lessons.push({ lessonId: row.lesson_id, title: row.lesson_title, date: row.date, status: row.status as 'needs-help' | 'almost' | 'absent', skill: row.skill ?? null })
         if (row.note?.trim()) student.notes.push({ date: row.date, lessonTitle: row.lesson_title, text: row.note.trim() })
       }
 
@@ -445,7 +445,7 @@ export default function App({ userId, isDemo = false, onSignOut }: Props) {
 
       const needsSupport = all.filter(s => s.lessons.some(l => l.status === 'needs-help')).sort((a, b) => a.name.localeCompare(b.name))
       const checkIn = all.filter(s => !s.lessons.some(l => l.status === 'needs-help') && s.lessons.some(l => l.status === 'almost')).sort((a, b) => a.name.localeCompare(b.name))
-      const absent = all.filter(s => s.lessons.every(l => l.status === 'absent')).sort((a, b) => a.name.localeCompare(b.name))
+      const absent = all.filter(s => s.lessons.some(l => l.status === 'absent')).sort((a, b) => a.name.localeCompare(b.name))
 
       return { classId: cls.id, className: cls.name, needsSupport, checkIn, absent }
     }).filter(c => c.needsSupport.length > 0 || c.checkIn.length > 0 || c.absent.length > 0)
@@ -891,23 +891,17 @@ export default function App({ userId, isDemo = false, onSignOut }: Props) {
       .then(() => setHistoryVersion(v => v + 1))
   }
 
-  function dismissStudent(studentId: string, classId: string) {
-    const rows = historyData.filter(r => r.student_id === studentId && r.class_id === classId && r.status === 'needs-help')
-    if (rows.length === 0) return
+  function dismissCheckin(studentId: string, lessonId: string, skill: string | null | undefined) {
     setHistoryData(cur => cur.map(r =>
-      r.student_id === studentId && r.class_id === classId && r.status === 'needs-help'
+      r.student_id === studentId && r.lesson_id === lessonId && (r.skill ?? null) === (skill ?? null) && r.status === 'needs-help'
         ? { ...r, status: 'got-it' }
         : r
     ))
-    const upsertRows = rows.map(r => ({
-      user_id: userId,
-      lesson_id: r.lesson_id,
-      student_id: r.student_id,
-      status: 'got-it' as Status,
-      note: r.note ?? null,
-      skill: r.skill ?? null,
-    }))
-    supabase.from('checkins').upsert(upsertRows, { onConflict: 'lesson_id,student_id,skill' }).then()
+    const row = historyData.find(r => r.student_id === studentId && r.lesson_id === lessonId && (r.skill ?? null) === (skill ?? null))
+    supabase.from('checkins').upsert(
+      [{ user_id: userId, lesson_id: lessonId, student_id: studentId, status: 'got-it' as Status, note: row?.note ?? null, skill: skill ?? null }],
+      { onConflict: 'lesson_id,student_id,skill' }
+    ).then()
   }
 
   // ── Exit tickets ──────────────────────────────────────────────────────────
@@ -1271,7 +1265,7 @@ async function handleSuggestExitTicket() {
     historyLoading, selectedStudentId, historyStudents, studentHistoryRows, STATUS_PILL, STATUS_LABEL,
     filteredHistory, selectedLesson, lessonDetail, lessonGroups,
     reportClassId, setReportClassId, reportRange, setReportRange, reportCustomStart, setReportCustomStart, reportCustomEnd,
-    setReportCustomEnd, reportData, copyReport, reportCopied, dismissStudent,
+    setReportCustomEnd, reportData, copyReport, reportCopied, dismissCheckin,
     rosterAddingClass, setRosterAddingClass, rosterNewClassName, setRosterNewClassName, rosterAddClass, rosterNewClassSubject,
     setRosterNewClassSubject, SUBJECTS, rosterSaving, studentsByClass, rosterRenaming, rosterRenameValue, setRosterRenameValue, rosterRenameClass,
     setRosterRenaming, rosterConfirmRemove, rosterRemoveStudent, setRosterConfirmRemove, rosterNewStudentName, setRosterNewStudentName,
