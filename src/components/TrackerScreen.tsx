@@ -180,11 +180,14 @@ export default function TrackerScreen(props: TrackerScreenProps) {
                 </div>
               )
             })()}
-          <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-2">
-            {currentStudents.map((student: AppStudent) => {
+          {(() => {
+            const atRisk = currentStudents.filter((s: AppStudent) => atRiskStudentIds.has(s.id))
+            const rest = currentStudents.filter((s: AppStudent) => !atRiskStudentIds.has(s.id))
+            const allNames = currentStudents.map((s: AppStudent) => s.name)
+            const renderCard = (student: AppStudent) => {
               const status = studentStatuses[student.id] ?? 'got-it'
               const initial = student.name.trim()[0].toUpperCase()
-              const displayName = formatStudentName(student.name, nameFormat, currentStudents.map((s: AppStudent) => s.name))
+              const displayName = formatStudentName(student.name, nameFormat, allNames)
               return (
                 <div
                   key={student.id}
@@ -212,13 +215,34 @@ export default function TrackerScreen(props: TrackerScreenProps) {
                   >
                     {displayName}
                   </button>
-                  {atRiskStudentIds.has(student.id) && (
-                    <span className="text-[9px] font-bold text-red-400 leading-none">at risk</span>
-                  )}
                 </div>
               )
-            })}
-          </div>
+            }
+            return (
+              <>
+                {atRisk.length > 0 && (
+                  <>
+                    <div className="flex items-center gap-2 mb-1.5">
+                      <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: '#ef4444' }}>Needs attention</span>
+                      <div className="flex-1 h-px" style={{ background: 'rgba(239,68,68,0.2)' }} />
+                    </div>
+                    <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-2 mb-3">
+                      {atRisk.map(renderCard)}
+                    </div>
+                  </>
+                )}
+                {atRisk.length > 0 && rest.length > 0 && (
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: '#3a3a4a' }}>Class</span>
+                    <div className="flex-1 h-px" style={{ background: 'rgba(255,255,255,0.06)' }} />
+                  </div>
+                )}
+                <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-2">
+                  {rest.map(renderCard)}
+                </div>
+              </>
+            )
+          })()}
           </>
         )}
       </main>

@@ -1284,18 +1284,30 @@ async function handleSuggestExitTicket() {
     return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`
   }
 
-  const atRiskStudentIds = useMemo(() => {
-    const ids = new Set<string>()
+  const STATUS_SCORE: Record<string, number> = { 'got-it': 3, 'almost': 2, 'needs-help': 1 }
+
+  const { atRiskStudentIds, sortedCurrentStudents } = useMemo(() => {
+    const scores = new Map<string, number>()
     for (const student of currentStudents) {
       const rows = historyData
-        .filter(r => r.student_id === student.id)
+        .filter(r => r.student_id === student.id && r.status !== 'absent')
         .sort((a, b) => b.date.localeCompare(a.date))
-        .slice(0, 3)
-      if (rows.length === 3 && rows.every(r => r.status === 'needs-help')) {
-        ids.add(student.id)
+        .slice(0, 10)
+      if (rows.length >= 2) {
+        const avg = rows.reduce((sum, r) => sum + (STATUS_SCORE[r.status] ?? 2), 0) / rows.length
+        scores.set(student.id, avg)
       }
     }
-    return ids
+    const ids = new Set(
+      [...scores.entries()].filter(([, avg]) => avg < 1.8).map(([id]) => id)
+    )
+    const sorted = [...currentStudents].sort((a, b) => {
+      const aAt = ids.has(a.id), bAt = ids.has(b.id)
+      if (aAt && !bAt) return -1
+      if (!aAt && bAt) return 1
+      return (scores.get(a.id) ?? 3) - (scores.get(b.id) ?? 3)
+    })
+    return { atRiskStudentIds: ids, sortedCurrentStudents: sorted }
   }, [historyData, currentStudents])
 
   // ── Render ────────────────────────────────────────────────────────────────
@@ -1317,7 +1329,7 @@ async function handleSuggestExitTicket() {
     skipDay, setSavedPlan, fileInputRef, handleFileUpload, planText, setPlanText, planError, handleSavePlan, planLoading, planSaved,
     activeLesson, isDemo, handleSuggestExitTicket, exitTicketLoading, setActiveLesson, setLessonInput, setExitTickets, setActiveExitTicket, setShowExitTickets,
     activeSubject, setLessonInputExternal: setLessonInput, startLessonByTitle, formatDate, lessonInput, startLesson, DEMO_LESSONS, selectedClassId,
-    showExitTickets, activeExitTicket, exitTickets, currentStudents, loading, studentStatuses, formatStudentName, nameFormat, STATUS_DOT, STATUS_INITIAL_BG, STATUS_RING, STATUS_CARD, tap, confirmAllGotIt,
+    showExitTickets, activeExitTicket, exitTickets, currentStudents: sortedCurrentStudents, loading, studentStatuses, formatStudentName, nameFormat, STATUS_DOT, STATUS_INITIAL_BG, STATUS_RING, STATUS_CARD, tap, confirmAllGotIt,
     historyData,
     historyTab, setHistoryTab, setSelectedStudentId, setSelectedLesson, classes, setHistoryClassId, historyClassId, classLabel,
     historyLoading, selectedStudentId, historyStudents, studentHistoryRows, STATUS_PILL, STATUS_LABEL,
