@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import * as Sentry from '@sentry/react'
 import { supabase } from './lib/supabase'
 import { parseLessonPlan, suggestExitTickets, parseStudentNames, type DayLesson, type WeekSchedule, type ExitTicket } from './lib/groq'
 import {
@@ -1362,6 +1363,7 @@ async function handleSuggestExitTicket() {
             {isDemo && <span className="text-xs font-semibold text-amber-400 bg-amber-900/40 px-2 py-0.5 rounded-full">Demo</span>}
           </div>
           <p className="text-xs mt-0.5" style={{ color: '#5a5a6a' }}>Academic Tracker</p>
+          <button type="button" onClick={() => Sentry.captureException(new Error('Sentry test — Pulse Academic'))} className="text-xs text-red-400 underline mt-1">Test Sentry</button>
         </div>
         <div className="min-w-0">
           <div className="hidden flex-wrap items-center gap-2 pb-0.5 sm:flex sm:flex-nowrap sm:justify-end sm:overflow-x-auto sm:scrollbar-none">
