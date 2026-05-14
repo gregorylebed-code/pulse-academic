@@ -876,8 +876,10 @@ export default function App({ userId, isDemo = false, onSignOut, onNeedsSetup }:
   }
 
   function startLesson() {
-    const title = lessonInput.trim()
-    if (!title) return
+    const title = lessonInput.trim() || (() => {
+      const d = new Date()
+      return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ' class'
+    })()
     setExitTickets([])
     setActiveExitTicket(null)
     setShowExitTickets(false)
@@ -1342,6 +1344,7 @@ async function handleSuggestExitTicket() {
     rosterAddStudent, setRosterPasteClassId, setRosterPasteText, setRosterCopySourceClassId, setRosterCopyTargetClassId, rosterCopySourceClassId,
     rosterCopyTargetClassId, rosterCopyFromClass, rosterPasteClassId, rosterPasteText, rosterParsing, rosterBulkAdd,
     setScreen,
+    onGoToPlan: () => setScreen('plan'),
     rosterRenamingStudent, setRosterRenamingStudent, rosterStudentRenameValue, setRosterStudentRenameValue, rosterRenameStudent,
     expandedRosterClassId, setExpandedRosterClassId,
     cycleNameFormat,

@@ -8,7 +8,7 @@ export default function TrackerScreen(props: TrackerScreenProps) {
     activeLesson, isDemo, handleSuggestExitTicket, exitTicketLoading, setActiveLesson, setLessonInput, setExitTickets, setActiveExitTicket, setShowExitTickets,
     activeSubject, savedPlan, setLessonInputExternal, startLessonByTitle, formatDate, lessonInput, startLesson, DEMO_LESSONS, selectedClassId,
     showExitTickets, activeExitTicket, exitTickets, currentStudents, loading, studentStatuses, formatStudentName, nameFormat, STATUS_INITIAL_BG, STATUS_RING, STATUS_CARD, tap, confirmAllGotIt,
-    openProfile, checkinNotes, atRiskStudentIds, onCirclePointerDown, onCirclePointerUp, onCirclePointerCancel, showSkills,
+    openProfile, checkinNotes, atRiskStudentIds, onCirclePointerDown, onCirclePointerUp, onCirclePointerCancel, showSkills, onGoToPlan,
   } = props
 
   const [savedFlash, setSavedFlash] = useState(false)
@@ -84,12 +84,22 @@ export default function TrackerScreen(props: TrackerScreenProps) {
               </div>
             </div>
           ) : (
-            <>
-              <div className="flex w-full max-w-2xl mx-auto gap-2">
-                <input type="text" value={lessonInput} onChange={e => setLessonInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && startLesson()} placeholder="What are you teaching today?" className="flex-1 min-w-0 text-sm rounded-2xl px-4 py-3 outline-none border focus:border-teal-500" style={{ background: '#1e1e22', borderColor: 'rgba(255,255,255,0.1)', color: '#f0f0f2' }} />
-                <button type="button" onClick={startLesson} disabled={!lessonInput.trim()} className="px-5 py-3 bg-teal-500 text-white text-sm font-semibold rounded-2xl disabled:opacity-40 shrink-0 shadow-sm shadow-teal-500/20">Start</button>
+            <div className="w-full max-w-2xl mx-auto">
+              <div className="mb-3 px-1">
+                <p className="text-xs font-semibold" style={{ color: '#5a5a6a' }}>
+                  No lesson plan uploaded for this week.{' '}
+                  <button type="button" onClick={onGoToPlan} className="underline hover:text-teal-400 transition-colors" style={{ color: '#5a5a6a' }}>
+                    Upload one in Plan
+                  </button>
+                  {' '}to get AI exit tickets and smarter tracking. You can still track below.
+                </p>
               </div>
-            </>
+              <div className="flex gap-2">
+                <input type="text" value={lessonInput} onChange={e => setLessonInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && startLesson()} placeholder="Name this lesson (optional)" className="flex-1 min-w-0 text-sm rounded-2xl px-4 py-3 outline-none border focus:border-teal-500" style={{ background: '#1e1e22', borderColor: 'rgba(255,255,255,0.1)', color: '#f0f0f2' }} />
+                <button type="button" onClick={startLesson} className="px-5 py-3 bg-teal-500 text-white text-sm font-semibold rounded-2xl shrink-0 shadow-sm shadow-teal-500/20">Start</button>
+              </div>
+              <p className="text-xs mt-2 px-1" style={{ color: '#3d3d4a' }}>Leave blank and it will be labeled with today's date.</p>
+            </div>
           )
         })()}
       </div>
